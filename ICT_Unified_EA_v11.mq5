@@ -70,9 +70,10 @@ int OnInit()
    Print("ICT Unified Professional EA v11 - Initializing...");
    Print("===========================================================");
 
-   Shadow_Init();
+    Shadow_Init();
+    g_perf.InitRolling();
 
-   if(!ValidateInputs())
+    if(!ValidateInputs())
      {
       Print("Input validation failed");
       return INIT_PARAMETERS_INCORRECT;
@@ -320,7 +321,20 @@ void OnTick()
       (g_needDetectSMT ? 1 : 0) +
       (g_needDetectKillzone ? 1 : 0);
 
-   g_perf.skippedFamilies = 7 - g_perf.loadedFamilies;
+    g_perf.skippedFamilies = 7 - g_perf.loadedFamilies;
+
+    // T4 telemetry guardrails
+    g_perf.UpdateRolling();
+    g_perf.UpdateBottleneck();
+    g_perf.warnExceeded = (g_perf.totalUs > (ulong)MathMax(InpSM_PerfWarnThresholdUs, 1));
+
+    if(g_perf.warnExceeded && isNewBar)
+    {
+       Print("[ICT PERF WARN] totalUs=", (int)g_perf.totalUs,
+             " avg50=", (int)g_perf.avgTotalUs,
+             " bottleneck=", g_perf.bottleneckText,
+             " thresholdUs=", InpSM_PerfWarnThresholdUs);
+    }
 }
 //+------------------------------------------------------------------+
 //| Timer function                                                    |
