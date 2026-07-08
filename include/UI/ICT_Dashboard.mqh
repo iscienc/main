@@ -541,9 +541,24 @@ if(InpSM_ShowPerformanceTelemetry)
                   " SkippedFam=" + IntegerToString(g_perf.skippedFamilies) +
                   " SkipDet=" + IntegerToString(g_perf.skippedDetectors);
 
+   string perfAvg = "Avg50(us): T=" + IntegerToString((int)g_perf.avgTotalUs) +
+                    " S=" + IntegerToString((int)g_perf.avgStructUs) +
+                    " N=" + IntegerToString((int)g_perf.avgNarrativeUs) +
+                    " SM=" + IntegerToString((int)g_perf.avgSmUs) +
+                    " Tr=" + IntegerToString((int)g_perf.avgTradeUs) +
+                    " D=" + IntegerToString((int)g_perf.avgDashUs);
+
+   string perfBot = "Bottleneck=" + g_perf.bottleneckText +
+                    " | Warn=" + string(g_perf.warnExceeded ? "YES" : "NO") +
+                    " (thr=" + IntegerToString(InpSM_PerfWarnThresholdUs) + "us)";
+
    CreateLabel(px + "Perf1", perf1, lx, cy, g_textColorDim, 8, ANCHOR_LEFT);
    cy += 13;
    CreateLabel(px + "Perf2", perf2, lx, cy, g_textColorDim, 8, ANCHOR_LEFT);
+   cy += 13;
+   CreateLabel(px + "PerfAvg", perfAvg, lx, cy, g_textColorDim, 8, ANCHOR_LEFT);
+   cy += 13;
+   CreateLabel(px + "PerfBot", perfBot, lx, cy, g_textColorDim, 8, ANCHOR_LEFT);
    cy += 13;
 }
 
