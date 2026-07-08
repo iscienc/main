@@ -35,8 +35,8 @@ enum ENUM_TREND_STATE
 //--- Entry Framework Mode (Stack vs State Machine)
 enum ENUM_ENTRY_FRAMEWORK_MODE
   {
-   FRAMEWORK_PD_STACK = 0,    // Current PD-stack-based engine
-   FRAMEWORK_STATE_MACHINE = 1// New State Machine engine
+   FRAMEWORK_NARRATIVE_SM = 0,   // Pure Narrative SM
+   FRAMEWORK_STATE_MACHINE = 1   // Backward compatibility
   };
 
 //--- State Machine Element Types (what each stage looks for)
@@ -60,8 +60,6 @@ enum ENUM_SM_ELEMENT
    SM_ELEM_BODY_CLOSE,          // Body close confirmation candle
    SM_ELEM_RETRACE_TO_EZ,       // Retrace to Entry Zone
    SM_ELEM_SMT_DIVERGENCE,      // SMT confirmed
-   SM_ELEM_PREMIUM_DISCOUNT,    // Correct P/D zone
-   SM_ELEM_STACKED_PDA,         // PD stack present at price
    SM_ELEM_DR_TARGET_AREA,      // Near DR target line
    SM_ELEM_KILLZONE,            // Inside allowed killzone
    SM_ELEM_AMD_DISTRIBUTION,
@@ -250,7 +248,7 @@ enum ENUM_SWING_SIGNIFICANCE
   };
 
 //+------------------------------------------------------------------+
-//|                SECTION 5: PD ARRAY ENUMERATIONS                    |
+//|                SECTION 5:  ARRAY ENUMERATIONS                    |
 //+------------------------------------------------------------------+
 
 //--- Order Block Type
@@ -318,20 +316,20 @@ enum ENUM_VOID_TYPE
    VOID_BEARISH = 2           // Void from Bearish Move
   };
 
-//--- PD Array Combined Type (for stacking)
-enum ENUM_PD_ARRAY_TYPE
-  {
-   PD_NONE = 0,
-   PD_ORDER_BLOCK = 1,
-   PD_BREAKER_BLOCK = 2,
-   PD_MITIGATION_BLOCK = 3,
-   PD_FVG = 4,
-   PD_VOLUME_IMBALANCE = 5,
-   PD_LIQUIDITY_VOID = 6,
-   PD_OTE_ZONE = 7,
-   PD_REJECTION_BLOCK = 8,
-   PD_PROPULSION_BLOCK = 9
-  };
+//---  Array Combined Type (for stacking)
+enum ENUM_NARRATIVE_ZONE_TYPE
+{
+   NZ_NONE = 0,
+   NZ_ORDER_BLOCK,
+   NZ_BREAKER_BLOCK,
+   NZ_MITIGATION_BLOCK,
+   NZ_FVG,
+   NZ_IFVG,
+   NZ_FVG_CE,
+   NZ_OTE_ZONE,
+   NZ_VOLUME_IMBALANCE,
+   NZ_LIQUIDITY_VOID
+};
 
 //+------------------------------------------------------------------+
 //|               SECTION 6: MARKET PHASE ENUMERATIONS                 |
@@ -435,7 +433,6 @@ enum ENUM_SIGNAL_TRIGGER
    TRIGGER_MB_ENTRY = 3,      // Mitigation Block Touch
    TRIGGER_FVG_ENTRY = 4,     // FVG Fill
    TRIGGER_OTE_ENTRY = 5,     // OTE Zone Entry
-   TRIGGER_STACKED_ENTRY = 6, // Multiple PD Arrays
    TRIGGER_DISPLACEMENT = 7   // Displacement Confirmation
   };
 
@@ -731,7 +728,7 @@ public:
   };
 
 //+------------------------------------------------------------------+
-//| Entry Zone Structure (Defined by DR for PD Array search)          |
+//| Entry Zone Structure (Defined by DR for Array search)          |
 //+------------------------------------------------------------------+
 struct SEntryZone
   {
@@ -1047,80 +1044,14 @@ struct SRejectionBlock
      }
   };
 
+
+
 //+------------------------------------------------------------------+
-//| PD Array Stack Structure (Confluence Detection)                   |
+//| Temporary Structure for Narrative Candidate Collection            |
 //+------------------------------------------------------------------+
-struct SPDStack
+struct SNarrativeZoneCandidate
   {
-   double            zoneTop;
-   double            zoneBottom;
-   datetime          time;
-
-   bool              hasOB;
-   bool              hasBreaker;
-   bool              hasMB;
-   bool              hasFVG;
-   bool              hasVI;
-   bool              hasOTE;
-
-   int               stackCount;
-   int               stackStrength;
-
-   ENUM_TRADE_DIRECTION direction;
-
-   // References to stacked arrays
-   int               obIndex;
-   int               breakerIndex;
-   int               mbIndex;
-   int               fvgIndex;
-
-   string            objName;
-
-   void              Reset()
-     {
-      zoneTop = 0;
-      zoneBottom = 0;
-      time = 0;
-      hasOB = false;
-      hasBreaker = false;
-      hasMB = false;
-      hasFVG = false;
-      hasVI = false;
-      hasOTE = false;
-      stackCount = 0;
-      stackStrength = 0;
-      direction = DIR_NONE;
-      obIndex = -1;
-      breakerIndex = -1;
-      mbIndex = -1;
-      fvgIndex = -1;
-      objName = "";
-     }
-
-   void              CalculateStackCount()
-     {
-      stackCount = 0;
-      if(hasOB)
-         stackCount++;
-      if(hasBreaker)
-         stackCount++;
-      if(hasMB)
-         stackCount++;
-      if(hasFVG)
-         stackCount++;
-      if(hasVI)
-         stackCount++;
-      if(hasOTE)
-         stackCount++;
-     }
-  };
-
-//+------------------------------------------------------------------+
-//| Temporary Structure for Candidate Collection                       |
-//+------------------------------------------------------------------+
-struct SPDZoneCandidate
-  {
-   ENUM_PD_ARRAY_TYPE type;
+   ENUM_NARRATIVE_ZONE_TYPE type;
    int               index;
    double            top;
    double            bottom;
@@ -1552,8 +1483,8 @@ enum ENUM_ML_FEATURE
    MLF_AMD_PHASE = 7,
    MLF_HAS_OB = 8,
    MLF_HAS_FVG = 9,
-   MLF_HAS_STACK = 10,
-   MLF_STACK_COUNT = 11,
+   MLF_HAS_CONFLUENCE = 10,      // reserved slot, stack removed
+   MLF_CONFLUENCE_COUNT = 11,    // reserved slot, stack removed
    MLF_OTE_IN_ZONE = 12,
    MLF_ZONE_ALIGNED = 13,
    MLF_SMT_CONFIRMED = 14,
@@ -1841,10 +1772,10 @@ string MLFeatureName(int idx)
          return "Has OB";
       case MLF_HAS_FVG:
          return "Has FVG";
-      case MLF_HAS_STACK:
-         return "Has Stack";
-      case MLF_STACK_COUNT:
-         return "Stack Cnt";
+      case MLF_HAS_CONFLUENCE:
+         return "Confluence";
+      case MLF_CONFLUENCE_COUNT:
+         return "Confl Cnt";
       case MLF_OTE_IN_ZONE:
          return "In OTE";
       case MLF_ZONE_ALIGNED:

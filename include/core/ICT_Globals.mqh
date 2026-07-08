@@ -42,6 +42,53 @@ datetime g_lastDashboardUpdate = 0;
 datetime g_lastStatsUpdate = 0;
 
 //+------------------------------------------------------------------+
+//|                  SECTION Telemetry - performance                 |
+//+------------------------------------------------------------------+
+struct SPerfTelemetry
+{
+   ulong tickStartUs;
+   ulong structUs;
+   ulong narrativeUs;
+   ulong smUs;
+   ulong tradeUs;
+   ulong dashUs;
+   ulong totalUs;
+
+   int loadedFamilies;
+   int skippedFamilies;
+   int skippedDetectors;
+
+   void Reset()
+   {
+      tickStartUs = 0;
+      structUs = 0;
+      narrativeUs = 0;
+      smUs = 0;
+      tradeUs = 0;
+      dashUs = 0;
+      totalUs = 0;
+      loadedFamilies = 0;
+      skippedFamilies = 0;
+      skippedDetectors = 0;
+   }
+};
+
+SPerfTelemetry g_perf;
+//+------------------------------------------------------------------+
+//|                  // SM loaded-element runtime registry                            |
+//+------------------------------------------------------------------+
+
+bool g_smElemLoaded[128];
+
+// Runtime detection gates derived from loaded SM elements
+bool g_needDetectOB = false;
+bool g_needDetectFVG = false;
+bool g_needDetectOTE = false;
+bool g_needDetectAMD = false;
+bool g_needDetectJudas = false;
+bool g_needDetectSMT = false;
+bool g_needDetectKillzone = false;
+//+------------------------------------------------------------------+
 //|                  SECTION 4: STATE FLAGS                            |
 //+------------------------------------------------------------------+
 
@@ -128,7 +175,7 @@ double g_lastInternalHigh = 0;
 double g_lastInternalLow = 0;
 
 //+------------------------------------------------------------------+
-//|                  SECTION 9: PD ARRAY STORAGE                       |
+//|                  SECTION 9: narrative ARRAY STORAGE                       |
 //+------------------------------------------------------------------+
 
 // Order Blocks
@@ -169,10 +216,7 @@ int g_maxRejections = 20;
 // OTE Zone
 SOTEZone g_oteZone;
 
-// PD Array Stacks (Confluence Zones)
-SPDStack g_pdStacks[];
-int g_stackCount = 0;
-int g_maxStacks = 15;
+
 
 // Liquidity Pools
 SLiquidityPool g_liquidityPools[];
@@ -218,21 +262,19 @@ int g_drTargetLineCount = 0;
 int g_maxDRTargetLines = 20;
 
 // Trigger context (which PD array triggered the current signal)
-int g_triggerPDIndex = -1;
-ENUM_PD_ARRAY_TYPE g_triggerPDType = PD_NONE;
+int g_triggerNarrativeIndex = -1;
+ENUM_NARRATIVE_ZONE_TYPE g_triggerNarrativeType = NZ_NONE;
 //+------------------------------------------------------------------+
 //|                  SECTION 13: OBJECT MANAGEMENT                     |
 //+------------------------------------------------------------------+
 
 string g_prefix = "ICT_U_";
 string g_drPrefix = "ICT_DR_";
-string g_pdPrefix = "ICT_PD_";
 string g_smObjPrefix = "ICT_SM_";
 string g_dashPrefix = "ICT_DASH_";
 
 int g_objCount = 0;
 int g_drObjCount = 0;
-int g_pdObjCount = 0;
 
 //+------------------------------------------------------------------+
 //|                  SECTION 14: DASHBOARD COLORS                      |
@@ -272,7 +314,7 @@ color g_successColor = C'50,255,100';
 int g_dashWidth = 340;
 int g_dashMainHeight = 320;
 int g_dashScoreHeight = 180;
-int g_dashPDArrayHeight = 160;
+int g_dashNarrativeHeight = 160;
 int g_dashLevelsHeight = 280;
 int g_dashSignalHeight = 120;
 int g_dashStatsHeight = 100;
@@ -340,9 +382,6 @@ void InitializeGlobalArrays()
    ArrayResize(g_rejectionBlocks, g_maxRejections);
    g_rejectionCount = 0;
 
-// PD Stacks
-   ArrayResize(g_pdStacks, g_maxStacks);
-   g_stackCount = 0;
 
 // Liquidity Pools
    ArrayResize(g_liquidityPools, g_maxLPs);
@@ -403,9 +442,9 @@ void ResetDealingRanges()
   }
 
 //+------------------------------------------------------------------+
-//| Reset All PD Arrays                                               |
+//| Reset All narrative Arrays                                               |
 //+------------------------------------------------------------------+
-void ResetAllPDArrays()
+void ResetAllNarrativeArrays()
   {
 // Reset Order Blocks
    for(int i = 0; i < g_obCount; i++)
@@ -437,11 +476,6 @@ void ResetAllPDArrays()
       g_voidList[i].Reset();
    g_voidCount = 0;
 
-// Reset PD Stacks
-   for(int i = 0; i < g_stackCount; i++)
-      g_pdStacks[i].Reset();
-   g_stackCount = 0;
-
 // Reset OTE
    g_oteZone.Reset();
   }
@@ -470,8 +504,9 @@ void ResetSignals()
    g_hasValidSignal = false;
    g_waitingForOTE = false;
 
-   g_triggerPDIndex = -1;
-   g_triggerPDType = PD_NONE;
+
+   g_triggerNarrativeType = NZ_NONE;
+   g_triggerNarrativeIndex = -1;
   }
 
 //+------------------------------------------------------------------+
@@ -493,7 +528,7 @@ void ResetAllGlobals()
   {
    InitializeGlobalArrays();
    ResetDealingRanges();
-   ResetAllPDArrays();
+   ResetAllNarrativeArrays();
    ResetMarketPhase();
    ResetSignals();
    ResetStatistics();
@@ -513,6 +548,16 @@ void ResetAllGlobals()
    g_lastBarTime = 0;
    g_lastHTFBarTime = 0;
    g_lastLTFBarTime = 0;
+
+   ArrayInitialize(g_smElemLoaded, false);
+
+   g_needDetectOB = false;
+   g_needDetectFVG = false;
+   g_needDetectOTE = false;
+   g_needDetectAMD = false;
+   g_needDetectJudas = false;
+   g_needDetectSMT = false;
+   g_needDetectKillzone = false;
   }
 
 //+------------------------------------------------------------------+
@@ -768,7 +813,7 @@ int                g_smActiveEntryInstance = -1;
 //+------------------------------------------------------------------+
 void SM_RegisterStructuralEvent(double price, ENUM_TRADE_DIRECTION dir,
                                 int barIndex, ENUM_TF_LAYER tfLayer)
-{
+  {
    g_lastSMEvent.Reset();
    g_lastSMEvent.time       = iTime(_Symbol, PERIOD_CURRENT, barIndex);
    g_lastSMEvent.price      = price;
@@ -778,7 +823,7 @@ void SM_RegisterStructuralEvent(double price, ENUM_TRADE_DIRECTION dir,
    g_lastSMEvent.barCounter = g_smBarCounter;
    g_lastSMEvent.tfLayer    = tfLayer;
    g_lastSMEvent.valid      = true;
-}
+  }
 
 
 #endif // ICT_GLOBALS_MQH

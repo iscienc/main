@@ -60,23 +60,39 @@ bool InitializeCore()
    InitializeGlobalArrays();
 
 // Set score threshold based on entry style
-   //switch(InpEntryStyle)
-    // {
-     // case STYLE_AGGRESSIVE:
+//switch(InpEntryStyle)
+// {
+// case STYLE_AGGRESSIVE:
 
-     //    break;
-     // case STYLE_MODERATE:
+//    break;
+// case STYLE_MODERATE:
 
-      //   break;
-     // case STYLE_CONSERVATIVE:
+//   break;
+// case STYLE_CONSERVATIVE:
 
-      //   break;
-   //  }
+//   break;
+//  }
 
    g_isInitialized = true;
    return true;
   }
 
+
+//+------------------------------------------------------------------+
+//| ShouldDrawNarrativeElement                                        |
+//+------------------------------------------------------------------+
+bool SM_IsElementLoaded(ENUM_SM_ELEMENT e);
+bool ShouldDrawNarrativeElement(ENUM_NARRATIVE_ZONE_TYPE zoneType)
+{
+   if(!InpSM_ShowLoadedElementsOnChart)
+      return false;
+
+   ENUM_SM_ELEMENT smElem = NarrativeZoneToSMElement(zoneType);
+   if(smElem == SM_ELEM_NONE)
+      return false;
+
+   return SM_IsElementLoaded(smElem);
+}
 //+------------------------------------------------------------------+
 //| Initialize Indicators                                             |
 //+------------------------------------------------------------------+
@@ -294,66 +310,73 @@ bool IsInstitutionalCandle(ENUM_TIMEFRAMES tf, int bar, double atr)
 //| Check if Displacement Candle                                      |
 //+------------------------------------------------------------------+
 bool IsDisplacementCandle(ENUM_TIMEFRAMES tf, int bar, double atr)
-{
-   if(atr <= 0) return false;
-   
+  {
+   if(atr <= 0)
+      return false;
+
    double range = CandleRange(tf, bar);
    if(range < atr * InpDisplacementMultiplier)
       return false;
-   
-   // Body percentage check
+
+// Body percentage check
    double body = BodySize(tf, bar);
    if(range > 0 && (body / range * 100.0) < InpDisp_MinBodyPercent)
       return false;
-   
-   return true;
-}
 
+   return true;
+  }
+
+//+------------------------------------------------------------------+
+//|                                                                  |
+//+------------------------------------------------------------------+
 bool IsDisplacementMove(ENUM_TIMEFRAMES tf, int startBar, double atr, bool expectBullish)
-{
-   if(atr <= 0) return false;
-   
+  {
+   if(atr <= 0)
+      return false;
+
    int count = InpDisp_MinConsecutive;
    double totalMove = 0;
-   
+
    for(int i = 0; i < count && (startBar + i) < iBars(_Symbol, tf); i++)
-   {
+     {
       int bar = startBar + i;
       double barOpen = TF_Open(tf, bar);
       double barClose = TF_Close(tf, bar);
-      
+
       if(!IsDisplacementCandle(tf, bar, atr))
          return false;
-      
+
       // Direction check
-      if(expectBullish && barClose <= barOpen) return false;
-      if(!expectBullish && barClose >= barOpen) return false;
-      
+      if(expectBullish && barClose <= barOpen)
+         return false;
+      if(!expectBullish && barClose >= barOpen)
+         return false;
+
       totalMove += MathAbs(barClose - barOpen);
-   }
-   
-   // Check if FVG was created (optional)
+     }
+
+// Check if FVG was created (optional)
    if(InpDisp_RequireFVGCreated)
-   {
+     {
       // Check for gap between candle before displacement and candle after
       if(startBar >= 2)
-      {
+        {
          double beforeHigh = TF_High(tf, startBar + 1);
          double afterLow = TF_Low(tf, startBar - 1);
-         
+
          if(expectBullish && afterLow <= beforeHigh)
             return false; // No bullish FVG created
-         
+
          double beforeLow = TF_Low(tf, startBar + 1);
          double afterHigh = TF_High(tf, startBar - 1);
-         
+
          if(!expectBullish && afterHigh >= beforeLow)
             return false; // No bearish FVG created
-      }
-   }
-   
+        }
+     }
+
    return true;
-}
+  }
 //+------------------------------------------------------------------+
 //|              SECTION 3: PIVOT DETECTION FUNCTIONS                  |
 //+------------------------------------------------------------------+
@@ -580,7 +603,7 @@ bool HasPulledBackFromExtreme(ENUM_TIMEFRAMES tf, double extremePrice,
    if(clBar < 3)
       return false;
 
-      double pullbackDist = atr * InpCL_PullbackMinATR;  // Was hardcoded 0.2
+   double pullbackDist = atr * InpCL_PullbackMinATR;  // Was hardcoded 0.2
 
    for(int i = clBar - 1; i >= 1; i--)
      {
@@ -673,9 +696,12 @@ ENUM_ZONE_TYPE CalculateZone(double price, double high, double low)
 
    double range = high - low;
    double eq = (high + low) / 2.0;
-   double eqBuffer = range * (InpEquilibriumBuffer / 100.0);
-   double premiumLevel = low + range * (InpPremiumLevel / 100.0);
-   double discountLevel = low + range * (InpDiscountLevel / 100.0);
+   double premiumPct = 70.0;
+   double discountPct = 30.0;
+   double eqBufferPct = 5.0;
+   double eqBuffer = range * (eqBufferPct / 100.0);
+   double premiumLevel = low + range * (premiumPct / 100.0);
+   double discountLevel = low + range * (discountPct / 100.0);
 
    if(price >= premiumLevel)
       return ZONE_PREMIUM;
@@ -894,13 +920,12 @@ void CleanupObjectsWithPrefix(string prefix)
 //| Cleanup All EA Objects                                            |
 //+------------------------------------------------------------------+
 void CleanupAllObjects()
-{
+  {
    CleanupObjectsWithPrefix(g_prefix);
    CleanupObjectsWithPrefix(g_drPrefix);
-   CleanupObjectsWithPrefix(g_pdPrefix);
    CleanupObjectsWithPrefix(g_smObjPrefix);
    CleanupObjectsWithPrefix(g_dashPrefix);
-}
+  }
 
 //+------------------------------------------------------------------+
 //| Periodic Cleanup (Old Objects)                                    |
@@ -925,9 +950,8 @@ void PeriodicCleanup()
 
       // Only delete our objects
       if(StringFind(name, g_prefix) != 0 &&
-               StringFind(name, g_smObjPrefix) != 0 &&
-         StringFind(name, g_drPrefix) != 0 &&
-         StringFind(name, g_pdPrefix) != 0)
+         StringFind(name, g_smObjPrefix) != 0 &&
+         StringFind(name, g_drPrefix) != 0)
          continue;
 
       // Don't delete dashboard
@@ -1088,8 +1112,6 @@ string TriggerToString(ENUM_SIGNAL_TRIGGER trigger)
          return "FVG";
       case TRIGGER_OTE_ENTRY:
          return "OTE Zone";
-      case TRIGGER_STACKED_ENTRY:
-         return "Stacked PDAs";
       case TRIGGER_DISPLACEMENT:
          return "Displacement";
       default:
@@ -1341,140 +1363,156 @@ double CalculateLotFromRisk(double slDistance)
 //| Check Session Filter (Bug #13 fix)                               |
 //+------------------------------------------------------------------+
 bool CheckSessionFilter()
-{
+  {
    if(!InpUseKillzoneFilter)
       return true;
-   
-   // Allow trading if we're in any active killzone
+
+// Allow trading if we're in any active killzone
    if(g_killzone.isActive)
       return true;
-   
-   // Also allow if killzone is not OFF_HOURS
+
+// Also allow if killzone is not OFF_HOURS
    if(g_killzone.current != KZ_OFF_HOURS && g_killzone.current != KZ_NONE)
       return true;
-   
+
    return false;
-}
+  }
 
 //+------------------------------------------------------------------+
 //|  SECTION 14: LAYER DISPLAY CONTROL & LABELING SYSTEM              |
 //+------------------------------------------------------------------+
 
 //+------------------------------------------------------------------+
-//| Map PD array type → SM element type                               |
+//| Map PD(NZ) array type → SM element type                               |
 //+------------------------------------------------------------------+
-ENUM_SM_ELEMENT PDTypeToSMElement(ENUM_PD_ARRAY_TYPE pdType)
-{
-   switch(pdType)
-   {
-      case PD_ORDER_BLOCK:      return SM_ELEM_ORDER_BLOCK;
-      case PD_BREAKER_BLOCK:    return SM_ELEM_BREAKER;
-      case PD_MITIGATION_BLOCK: return SM_ELEM_MITIGATION;
-      case PD_FVG:              return SM_ELEM_FVG;
-      case PD_OTE_ZONE:         return SM_ELEM_OTE_ZONE;
-      default:                  return SM_ELEM_NONE;
-   }
-}
+ENUM_SM_ELEMENT NarrativeZoneToSMElement(ENUM_NARRATIVE_ZONE_TYPE zoneType)
+  {
+   switch(zoneType)
+     {
+      case NZ_ORDER_BLOCK:
+         return SM_ELEM_ORDER_BLOCK;
+      case NZ_BREAKER_BLOCK:
+         return SM_ELEM_BREAKER;
+      case NZ_MITIGATION_BLOCK:
+         return SM_ELEM_MITIGATION;
+      case NZ_FVG:
+         return SM_ELEM_FVG;
+      case NZ_IFVG:
+         return SM_ELEM_IFVG;
+      case NZ_FVG_CE:
+         return SM_ELEM_FVG_CE;
+      case NZ_OTE_ZONE:
+         return SM_ELEM_OTE_ZONE;
+      case NZ_VOLUME_IMBALANCE:
+         return SM_ELEM_VOLUME_IMBALANCE;
+      case NZ_LIQUIDITY_VOID:
+         return SM_ELEM_LIQUIDITY_VOID;
+      default:
+         return SM_ELEM_NONE;
+     }
+  }
 
 //+------------------------------------------------------------------+
 //| Check if an SM element is used in any of the 8 stage slots        |
 //+------------------------------------------------------------------+
 bool SM_IsElementInStages(ENUM_SM_ELEMENT elem)
-{
-   if(elem == SM_ELEM_NONE) return false;
-   for(int s = 0; s < SM_MAX_STAGES; s++)
-   {
-      if(g_smStageCfg[s].primaryElem  == elem) return true;
-      if(g_smStageCfg[s].secondaryElem == elem) return true;
-   }
-   return false;
-}
-
-//+------------------------------------------------------------------+
-//| Gate: should this PD element type be drawn on chart?              |
-//| PD mode  → always true                                           |
-//| SM mode  → true only if element is selected in any SM stage       |
-//+------------------------------------------------------------------+
-bool ShouldDrawPDElement(ENUM_PD_ARRAY_TYPE pdType)
-{
-   ENUM_SM_ELEMENT smElem = PDTypeToSMElement(pdType);
-   if(smElem == SM_ELEM_NONE)
+  {
+   if(elem == SM_ELEM_NONE)
       return false;
-   return SM_IsElementInStages(smElem);
-}
+   for(int s = 0; s < SM_MAX_STAGES; s++)
+     {
+      if(g_smStageCfg[s].primaryElem  == elem)
+         return true;
+      if(g_smStageCfg[s].secondaryElem == elem)
+         return true;
+     }
+   return false;
+  }
+
 
 //+------------------------------------------------------------------+
 //| Get current system tag ("PD" or "SM")                             |
 //+------------------------------------------------------------------+
 string GetSystemTag()
-{
+  {
    return "SM";
-}
+  }
 
 //+------------------------------------------------------------------+
 //| Get TF layer short tag                                            |
 //+------------------------------------------------------------------+
 string GetTFTag(ENUM_TF_LAYER layer)
-{
+  {
    switch(layer)
-   {
-      case LAYER_HTF: return "HTF";
-      case LAYER_LTF: return "LTF";
-      default:        return "CTF";
-   }
-}
+     {
+      case LAYER_HTF:
+         return "HTF";
+      case LAYER_LTF:
+         return "LTF";
+      default:
+         return "CTF";
+     }
+  }
 
 //+------------------------------------------------------------------+
 //| Build PD/SM element label: "CTF PD Bull FVG"                      |
 //+------------------------------------------------------------------+
 string BuildElementLabel(ENUM_TF_LAYER tf, bool isBullish,
                          string elemName, string suffix = "")
-{
+  {
    string label = GetTFTag(tf) + " " + GetSystemTag() + " "
-                + (isBullish ? "Bull " : "Bear ")
-                + elemName;
-   if(suffix != "") label += " " + suffix;
+                  + (isBullish ? "Bull " : "Bear ")
+                  + elemName;
+   if(suffix != "")
+      label += " " + suffix;
    return label;
-}
+  }
 
 //+------------------------------------------------------------------+
 //| Build DR structure label (no system tag): "CTF Bull CL"           |
 //+------------------------------------------------------------------+
 string BuildDRLabel(ENUM_TF_LAYER tf, bool isBullish,
                     string elemName, string suffix = "")
-{
+  {
    string label = GetTFTag(tf) + " "
-                + (isBullish ? "Bull " : "Bear ")
-                + elemName;
-   if(suffix != "") label += " " + suffix;
+                  + (isBullish ? "Bull " : "Bear ")
+                  + elemName;
+   if(suffix != "")
+      label += " " + suffix;
    return label;
-}
+  }
 
 //+------------------------------------------------------------------+
 //| Get Main CL vertical width for a TF layer                        |
 //+------------------------------------------------------------------+
 int GetMainCLWidth(ENUM_TF_LAYER layer)
-{
+  {
    switch(layer)
-   {
-      case LAYER_HTF: return InpHTF_MainCLWidth;
-      case LAYER_LTF: return InpLTF_MainCLWidth;
-      default:        return InpCTF_MainCLWidth;
-   }
-}
+     {
+      case LAYER_HTF:
+         return InpHTF_MainCLWidth;
+      case LAYER_LTF:
+         return InpLTF_MainCLWidth;
+      default:
+         return InpCTF_MainCLWidth;
+     }
+  }
 
 //+------------------------------------------------------------------+
 //| Get Pullback CL vertical width for a TF layer                    |
 //+------------------------------------------------------------------+
 int GetPBCLWidth(ENUM_TF_LAYER layer)
-{
+  {
    switch(layer)
-   {
-      case LAYER_HTF: return InpHTF_PB_CLWidth;
-      case LAYER_LTF: return InpLTF_PB_CLWidth;
-      default:        return InpCTF_PB_CLWidth;
-   }
-}
+     {
+      case LAYER_HTF:
+         return InpHTF_PB_CLWidth;
+      case LAYER_LTF:
+         return InpLTF_PB_CLWidth;
+      default:
+         return InpCTF_PB_CLWidth;
+     }
+  }
 
 #endif // ICT_UTILITIES_MQH
 //+------------------------------------------------------------------+
