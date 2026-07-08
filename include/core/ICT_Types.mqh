@@ -90,9 +90,13 @@ enum ENUM_SM_STAGE_ROLE
 //--- Direction policy per stage
 enum ENUM_SM_DIRECTION_POLICY
   {
-   SM_DIR_FROM_TRIGGER = 0,  // Use direction inherited from Trigger stage
-   SM_DIR_FROM_DR      = 1,  // Use current DR direction
-   SM_DIR_FROM_AMD     = 2   // Use AMD expectedDirection
+   SM_DIR_FROM_TRIGGER = 0, // Use direction inherited from Trigger stage
+   SM_DIR_FROM_DR = 1, // Use current DR direction
+   SM_DIR_FROM_AMD = 2, // Use AMD expectedDirection
+   SM_DIR_COUNTER_TRIGGER = 3, // ★ NEW: Opposite of Trigger direction
+   SM_DIR_INVERT_TRIGGER = 4, // ★ NEW: Flip Trigger direction (alias)
+   SM_DIR_FIXED_BULL = 5, // ★ NEW: Always DIR_BULLISH
+   SM_DIR_FIXED_BEAR = 6 // ★ NEW: Always DIR_BEARISH
   };
 
 //--- Instance coexist policy
@@ -111,7 +115,9 @@ enum ENUM_SM_PRESET
    SM_PRESET_JUDAS_REVERSAL = 3,
    SM_PRESET_OTE_PULLBACK   = 4,
    SM_PRESET_SMT_REVERSAL   = 5,
-   SM_PRESET_MTF_NARRATIVE  = 6    // NEW: Full cross-TF narrative
+   SM_PRESET_MTF_NARRATIVE  = 6,    // NEW: Full cross-TF narrative
+   SM_PRESET_BEARISH_SWEEP_BULLISH_ENTRY = 7, // ★ NEW
+   SM_PRESET_BULLISH_SWEEP_BEARISH_ENTRY = 8 // ★ NEW
   };
 //--- Lot Sizing Mode
 enum ENUM_LOT_MODE
@@ -318,7 +324,7 @@ enum ENUM_VOID_TYPE
 
 //---  Array Combined Type (for stacking)
 enum ENUM_NARRATIVE_ZONE_TYPE
-{
+  {
    NZ_NONE = 0,
    NZ_ORDER_BLOCK,
    NZ_BREAKER_BLOCK,
@@ -329,7 +335,7 @@ enum ENUM_NARRATIVE_ZONE_TYPE
    NZ_OTE_ZONE,
    NZ_VOLUME_IMBALANCE,
    NZ_LIQUIDITY_VOID
-};
+  };
 
 //+------------------------------------------------------------------+
 //|               SECTION 6: MARKET PHASE ENUMERATIONS                 |
@@ -2036,7 +2042,8 @@ class SSMInstance
 public:
    bool                  active;
    int                   id;
-   ENUM_TRADE_DIRECTION  direction;
+   ENUM_TRADE_DIRECTION direction; // Set by Trigger
+   ENUM_TRADE_DIRECTION resolvedEntryDir; // ★ NEW: Resolved at Entry stage
    datetime              stageTime[SM_MAX_STAGES];
    int                   stageBarCtr[SM_MAX_STAGES];   // NEW: monotonic bar counter
    bool                  stageDone[SM_MAX_STAGES];
@@ -2058,6 +2065,7 @@ public:
       active = false;
       id = -1;
       direction = DIR_NONE;
+      resolvedEntryDir = DIR_NONE; // ★ NEW: initialize
       ArrayInitialize(stageTime, 0);
       ArrayInitialize(stageBarCtr, 0);    // NEW
       ArrayInitialize(stageDone, false);
