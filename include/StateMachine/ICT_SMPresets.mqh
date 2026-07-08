@@ -78,7 +78,7 @@ void SM_LoadPreset()
 
          g_smStageCfg[2].primaryElem   = SM_ELEM_BOS;
          g_smStageCfg[2].primaryTF     = LAYER_LTF;
-         g_smStageCfg[2].secondaryElem = SM_ELEM_PREMIUM_DISCOUNT;
+         g_smStageCfg[2].secondaryElem = SM_ELEM_ORDER_BLOCK;
          g_smStageCfg[2].secondaryTF   = LAYER_CTF;
          g_smStageCfg[2].logic         = SM_LOGIC_AND;
          g_smStageCfg[2].required      = false;
@@ -122,7 +122,7 @@ void SM_LoadPreset()
          g_smStageCfg[1].primaryElem = SM_ELEM_BOS; g_smStageCfg[1].primaryTF = LAYER_CTF;
          g_smStageCfg[1].logic = SM_LOGIC_SINGLE; g_smStageCfg[1].causalLink = true;
          g_smStageCfg[2].primaryElem = SM_ELEM_OTE_ZONE; g_smStageCfg[2].primaryTF = LAYER_CTF;
-         g_smStageCfg[2].secondaryElem = SM_ELEM_PREMIUM_DISCOUNT; g_smStageCfg[2].secondaryTF = LAYER_CTF;
+         g_smStageCfg[2].secondaryElem = SM_ELEM_ORDER_BLOCK; g_smStageCfg[2].secondaryTF = LAYER_CTF;
          g_smStageCfg[2].logic = SM_LOGIC_AND; g_smStageCfg[2].required = true;
          g_smStageCfg[3].primaryElem = SM_ELEM_ORDER_BLOCK; g_smStageCfg[3].primaryTF = LAYER_CTF;
          g_smStageCfg[3].secondaryElem = SM_ELEM_FVG; g_smStageCfg[3].secondaryTF = LAYER_CTF;

@@ -8,7 +8,8 @@
 // Minimum institutional chain quality
 int NAR_MinCompletedStages()
 {
-   return 3; // Trigger + Confirm + Entry minimum
+   // Trigger + Confirmation + Entry minimum quality
+   return 3;
 }
 
 int NAR_MaxChainAgeBars()
@@ -18,15 +19,22 @@ int NAR_MaxChainAgeBars()
 
 bool NAR_DirectionAligned(ENUM_TRADE_DIRECTION dir)
 {
-   if(dir == DIR_NONE) return false;
-   if(g_currentDirection == DIR_NONE) return true;
+   if(dir == DIR_NONE)
+      return false;
+
+   if(g_currentDirection == DIR_NONE)
+      return true;
+
    return (dir == g_currentDirection);
 }
 
 bool NAR_EnvironmentOK(ENUM_TRADE_DIRECTION dir)
 {
-   if(InpUseKillzoneFilter && !IsInKillzone()) return false;
-   if(InpUsePremiumDiscount && !IsZoneAligned(dir == DIR_BULLISH)) return false;
+   // Keep killzone filter if enabled
+   if(InpUseKillzoneFilter && !IsInKillzone())
+      return false;
+
+   // Pure Narrative SM: no premium/discount gate dependency
    return true;
 }
 
@@ -34,16 +42,19 @@ int NAR_CountStageDone(const SSMInstance &inst)
 {
    int n = 0;
    for(int s = 0; s < SM_MAX_STAGES; s++)
-      if(inst.stageDone[s]) n++;
+   {
+      if(inst.stageDone[s])
+         n++;
+   }
    return n;
 }
 
-bool NAR_HasRequiredPDAtEntry(const SSMInstance &inst)
+bool NAR_HasRequiredNarrativeAtEntry(const SSMInstance &inst)
 {
    bool isBull = (inst.direction == DIR_BULLISH);
    int idx = -1;
 
-   // Entry-level existence check: at least one actionable element
+   // At least one actionable first-order narrative element
    if(IsPriceAtOrderBlock(isBull, idx)) return true;
    if(IsPriceInFVG(isBull, idx)) return true;
    if(IsPriceAtBreakerBlock(isBull, idx)) return true;
@@ -89,7 +100,7 @@ bool NAR_IsChainTradable(const SSMInstance &inst, string &reason)
       return false;
    }
 
-   if(!NAR_HasRequiredPDAtEntry(inst))
+   if(!NAR_HasRequiredNarrativeAtEntry(inst))
    {
       reason = "no_entry_element";
       return false;
@@ -101,20 +112,23 @@ bool NAR_IsChainTradable(const SSMInstance &inst, string &reason)
 bool IsNarrativeTradable(ENUM_TRADE_DIRECTION dir, string &reason)
 {
    reason = "no_ready_chain";
+
    for(int i = 0; i < SM_MAX_INSTANCES; i++)
    {
       if(!g_smInstances[i].active) continue;
       if(!g_smInstances[i].stageDone[SM_MAX_STAGES - 1]) continue;
       if(dir != DIR_NONE && g_smInstances[i].direction != dir) continue;
 
-      string r;
+      string r = "";
       if(NAR_IsChainTradable(g_smInstances[i], r))
       {
          reason = "";
          return true;
       }
+
       reason = r;
    }
+
    return false;
 }
 

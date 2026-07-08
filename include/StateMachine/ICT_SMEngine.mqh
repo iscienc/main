@@ -25,26 +25,98 @@ bool InitializeSMEngine()
    g_smActiveEntryInstance = -1;
 
    SM_LoadPreset();
+   SM_BuildLoadedElementSet();
+   SM_LogLoadedElementSet();
 
    Print("SM Engine init. Preset=", EnumToString(InpSM_Preset));
    return true;
   }
 
-//+------------------------------------------------------------------+
-/*void SM_RegisterStructuralEvent(double price, ENUM_TRADE_DIRECTION dir,
-                                int barIndex, ENUM_TF_LAYER tfLayer)
+void SM_RefreshLoadedSet()
 {
-   g_lastSMEvent.Reset();
-   g_lastSMEvent.time       = iTime(_Symbol, PERIOD_CURRENT, barIndex);
-   g_lastSMEvent.price      = price;
-   g_lastSMEvent.direction  = dir;
-   g_lastSMEvent.barIndex   = barIndex;
-   g_lastSMEvent.tag        = g_nextSMCausalTag++;
-   g_lastSMEvent.barCounter = g_smBarCounter;
-   g_lastSMEvent.tfLayer    = tfLayer;
-   g_lastSMEvent.valid      = true;
+   SM_BuildLoadedElementSet();
+   SM_LogLoadedElementSet();
 }
-*/
+
+//+------------------------------------------------------------------+
+void SM_ResetLoadedElements()
+  {
+   ArrayInitialize(g_smElemLoaded, false);
+  }
+
+//+------------------------------------------------------------------+
+//|                                                                  |
+//+------------------------------------------------------------------+
+void SM_MarkLoaded(ENUM_SM_ELEMENT e)
+  {
+   int idx = (int)e;
+   if(idx > 0 && idx < 128)
+      g_smElemLoaded[idx] = true;
+  }
+
+//+------------------------------------------------------------------+
+//|                                                                  |
+//+------------------------------------------------------------------+
+bool SM_IsElementLoaded(ENUM_SM_ELEMENT e)
+  {
+   int idx = (int)e;
+   if(idx <= 0 || idx >= 128)
+      return false;
+   return g_smElemLoaded[idx];
+  }
+
+//+------------------------------------------------------------------+
+//|                                                                  |
+//+------------------------------------------------------------------+
+void SM_BuildLoadedElementSet()
+  {
+   SM_ResetLoadedElements();
+
+   for(int s = 0; s < SM_MAX_STAGES; s++)
+     {
+      SM_MarkLoaded(g_smStageCfg[s].primaryElem);
+      SM_MarkLoaded(g_smStageCfg[s].secondaryElem);
+     }
+
+   g_needDetectOB =
+      SM_IsElementLoaded(SM_ELEM_ORDER_BLOCK) ||
+      SM_IsElementLoaded(SM_ELEM_BREAKER) ||
+      SM_IsElementLoaded(SM_ELEM_MITIGATION);
+
+   g_needDetectFVG =
+      SM_IsElementLoaded(SM_ELEM_FVG) ||
+      SM_IsElementLoaded(SM_ELEM_IFVG) ||
+      SM_IsElementLoaded(SM_ELEM_FVG_CE) ||
+      SM_IsElementLoaded(SM_ELEM_VOLUME_IMBALANCE) ||
+      SM_IsElementLoaded(SM_ELEM_LIQUIDITY_VOID);
+
+   g_needDetectOTE = SM_IsElementLoaded(SM_ELEM_OTE_ZONE);
+
+   g_needDetectAMD =
+      SM_IsElementLoaded(SM_ELEM_AMD_ACCUMULATION) ||
+      SM_IsElementLoaded(SM_ELEM_AMD_MANIPULATION) ||
+      SM_IsElementLoaded(SM_ELEM_AMD_DISTRIBUTION);
+
+   g_needDetectJudas = SM_IsElementLoaded(SM_ELEM_JUDAS_SWING);
+   g_needDetectSMT = SM_IsElementLoaded(SM_ELEM_SMT_DIVERGENCE);
+   g_needDetectKillzone = SM_IsElementLoaded(SM_ELEM_KILLZONE);
+  }
+
+//+------------------------------------------------------------------+
+//|                                                                  |
+//+------------------------------------------------------------------+
+void SM_LogLoadedElementSet()
+  {
+   Print("SM Loaded Set:",
+         " OB=", (g_needDetectOB ? "ON" : "OFF"),
+         " FVG=", (g_needDetectFVG ? "ON" : "OFF"),
+         " OTE=", (g_needDetectOTE ? "ON" : "OFF"),
+         " AMD=", (g_needDetectAMD ? "ON" : "OFF"),
+         " Judas=", (g_needDetectJudas ? "ON" : "OFF"),
+         " SMT=", (g_needDetectSMT ? "ON" : "OFF"),
+         " KZ=", (g_needDetectKillzone ? "ON" : "OFF"));
+  }
+
 //+------------------------------------------------------------------+
 SSMInstance* SM_AllocInstance()
   {
@@ -473,10 +545,6 @@ string SM_ElementShortName(ENUM_SM_ELEMENT e)
          return "Retr";
       case SM_ELEM_SMT_DIVERGENCE:
          return "SMT";
-      case SM_ELEM_PREMIUM_DISCOUNT:
-         return "P/D";
-      case SM_ELEM_STACKED_PDA:
-         return "Stack";
       case SM_ELEM_DR_TARGET_AREA:
          return "DRTgt";
       case SM_ELEM_KILLZONE:

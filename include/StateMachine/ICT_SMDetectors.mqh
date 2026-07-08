@@ -10,7 +10,7 @@
 #include "../Core/ICT_Globals.mqh"
 #include "../Core/ICT_Utilities.mqh"
 #include "ICT_SMTypes.mqh"
-#include "../PDArrays/ICT_PDArrays_Master.mqh"
+#include "../NarrativeZones/ICT_NarrativeZones_Master.mqh"
 #include "../Structure/ICT_DealingRange.mqh"
 #include "../Structure/ICT_MultiTF.mqh"
 #include "../MarketPhase/ICT_JudasSwing.mqh"
@@ -578,15 +578,15 @@ bool SM_Detect_LiquidityVoid(ENUM_TF_LAYER tfLay, ENUM_TRADE_DIRECTION dir,
 //+------------------------------------------------------------------+
 bool SM_Detect_Breaker(ENUM_TF_LAYER tfLay, ENUM_TRADE_DIRECTION dir,
                        bool causal, int &outTag, double &outPrice)
-{
+  {
    outTag = -1;
    outPrice = 0.0;
 
    int requiredTag = -1;
 
-   // Causal gate (shared for CTF + HTF/LTF)
+// Causal gate (shared for CTF + HTF/LTF)
    if(causal)
-   {
+     {
       if(!g_lastSMEvent.valid || g_lastSMEvent.tag < 0)
          return false;
 
@@ -604,105 +604,114 @@ bool SM_Detect_Breaker(ENUM_TF_LAYER tfLay, ENUM_TRADE_DIRECTION dir,
          return false;
 
       requiredTag = g_lastSMEvent.tag;
-   }
+     }
 
-   // CTF: use existing breaker objects
+// CTF: use existing breaker objects
    if(tfLay == LAYER_CTF)
-   {
+     {
       int idx = -1;
       if(IsPriceAtBreakerBlock(dir == DIR_BULLISH, idx))
-      {
+        {
          outPrice = (g_breakerBlocks[idx].top + g_breakerBlocks[idx].bottom) * 0.5;
-         if(causal) outTag = requiredTag; // step 3
+         if(causal)
+            outTag = requiredTag; // step 3
          return true;
-      }
+        }
       return false;
-   }
+     }
 
-   // HTF/LTF fallback: synthetic breaker scan
+// HTF/LTF fallback: synthetic breaker scan
    ENUM_TIMEFRAMES tf = SM_LayerToTF(tfLay);
    double atr = SM_LayerATR(tfLay);
-   if(atr <= 0) return false;
+   if(atr <= 0)
+      return false;
 
    double price = iClose(_Symbol, PERIOD_CURRENT, 0);
    double breakBuf = MathMax(_Point * 3, atr * 0.03);
 
    for(int i = 6; i <= 80; i++)
-   {
+     {
       double o = iOpen(_Symbol, tf, i);
       double c = iClose(_Symbol, tf, i);
       double h = iHigh(_Symbol, tf, i);
       double l = iLow(_Symbol, tf, i);
 
       if(dir == DIR_BULLISH)
-      {
+        {
          // source zone candidate
-         if(c <= o) continue;
+         if(c <= o)
+            continue;
          double zTop = h;
          double zBot = MathMin(o, c);
 
          bool invalidatedUp = false;
          for(int b = i - 1; b >= 1; b--)
-         {
+           {
             double cb = iClose(_Symbol, tf, b);
             if(cb > zTop + breakBuf && IsDisplacementCandle(tf, b, atr))
-            {
+              {
                invalidatedUp = true;
                break;
-            }
-         }
-         if(!invalidatedUp) continue;
+              }
+           }
+         if(!invalidatedUp)
+            continue;
 
          if(price >= zBot && price <= zTop)
-         {
+           {
             outPrice = (zTop + zBot) * 0.5;
-            if(causal) outTag = requiredTag; // step 4/5 proxy chain-link
+            if(causal)
+               outTag = requiredTag; // step 4/5 proxy chain-link
             return true;
-         }
-      }
-      else if(dir == DIR_BEARISH)
-      {
-         if(c >= o) continue;
-         double zTop = MathMax(o, c);
-         double zBot = l;
+           }
+        }
+      else
+         if(dir == DIR_BEARISH)
+           {
+            if(c >= o)
+               continue;
+            double zTop = MathMax(o, c);
+            double zBot = l;
 
-         bool invalidatedDn = false;
-         for(int b = i - 1; b >= 1; b--)
-         {
-            double cb = iClose(_Symbol, tf, b);
-            if(cb < zBot - breakBuf && IsDisplacementCandle(tf, b, atr))
-            {
-               invalidatedDn = true;
-               break;
-            }
-         }
-         if(!invalidatedDn) continue;
+            bool invalidatedDn = false;
+            for(int b = i - 1; b >= 1; b--)
+              {
+               double cb = iClose(_Symbol, tf, b);
+               if(cb < zBot - breakBuf && IsDisplacementCandle(tf, b, atr))
+                 {
+                  invalidatedDn = true;
+                  break;
+                 }
+              }
+            if(!invalidatedDn)
+               continue;
 
-         if(price >= zBot && price <= zTop)
-         {
-            outPrice = (zTop + zBot) * 0.5;
-            if(causal) outTag = requiredTag;
-            return true;
-         }
-      }
-   }
+            if(price >= zBot && price <= zTop)
+              {
+               outPrice = (zTop + zBot) * 0.5;
+               if(causal)
+                  outTag = requiredTag;
+               return true;
+              }
+           }
+     }
 
    return false;
-}
+  }
 //+------------------------------------------------------------------+
 //|                                                                  |
 //+------------------------------------------------------------------+
 bool SM_Detect_Mitigation(ENUM_TF_LAYER tfLay, ENUM_TRADE_DIRECTION dir,
                           bool causal, int &outTag, double &outPrice)
-{
+  {
    outTag = -1;
    outPrice = 0.0;
 
    int requiredTag = -1;
 
-   // Causal gate
+// Causal gate
    if(causal)
-   {
+     {
       if(!g_lastSMEvent.valid || g_lastSMEvent.tag < 0)
          return false;
 
@@ -717,88 +726,97 @@ bool SM_Detect_Mitigation(ENUM_TF_LAYER tfLay, ENUM_TRADE_DIRECTION dir,
          return false;
 
       requiredTag = g_lastSMEvent.tag;
-   }
+     }
 
-   // CTF: use existing mitigation objects
+// CTF: use existing mitigation objects
    if(tfLay == LAYER_CTF)
-   {
+     {
       int idx = -1;
       if(IsPriceAtMitigationBlock(dir == DIR_BULLISH, idx))
-      {
+        {
          outPrice = (g_mitigationBlocks[idx].top + g_mitigationBlocks[idx].bottom) * 0.5;
-         if(causal) outTag = requiredTag; // step 3
+         if(causal)
+            outTag = requiredTag; // step 3
          return true;
-      }
+        }
       return false;
-   }
+     }
 
-   // HTF/LTF fallback: synthetic mitigation scan
+// HTF/LTF fallback: synthetic mitigation scan
    ENUM_TIMEFRAMES tf = SM_LayerToTF(tfLay);
    double atr = SM_LayerATR(tfLay);
-   if(atr <= 0) return false;
+   if(atr <= 0)
+      return false;
 
    double price = iClose(_Symbol, PERIOD_CURRENT, 0);
    double breakBuf = MathMax(_Point * 2, atr * 0.02);
 
    for(int i = 5; i <= 80; i++)
-   {
+     {
       double o = iOpen(_Symbol, tf, i);
       double c = iClose(_Symbol, tf, i);
       double h = iHigh(_Symbol, tf, i);
       double l = iLow(_Symbol, tf, i);
 
       if(dir == DIR_BULLISH)
-      {
-         if(c >= o) continue; // bearish source candle
+        {
+         if(c >= o)
+            continue; // bearish source candle
          double zTop = MathMax(o, c);
          double zBot = l;
 
          bool continuationUp = false;
          for(int b = i - 1; b >= 1; b--)
-         {
+           {
             if(iClose(_Symbol, tf, b) > h + breakBuf)
-            {
+              {
                continuationUp = true;
                break;
-            }
-         }
-         if(!continuationUp) continue;
+              }
+           }
+         if(!continuationUp)
+            continue;
 
          if(price >= zBot && price <= zTop)
-         {
+           {
             outPrice = (zTop + zBot) * 0.5;
-            if(causal) outTag = requiredTag;
+            if(causal)
+               outTag = requiredTag;
             return true;
-         }
-      }
-      else if(dir == DIR_BEARISH)
-      {
-         if(c <= o) continue; // bullish source candle
-         double zTop = h;
-         double zBot = MathMin(o, c);
+           }
+        }
+      else
+         if(dir == DIR_BEARISH)
+           {
+            if(c <= o)
+               continue; // bullish source candle
+            double zTop = h;
+            double zBot = MathMin(o, c);
 
-         bool continuationDn = false;
-         for(int b = i - 1; b >= 1; b--)
-         {
-            if(iClose(_Symbol, tf, b) < l - breakBuf)
-            {
-               continuationDn = true;
-               break;
-            }
-         }
-         if(!continuationDn) continue;
+            bool continuationDn = false;
+            for(int b = i - 1; b >= 1; b--)
+              {
+               if(iClose(_Symbol, tf, b) < l - breakBuf)
+                 {
+                  continuationDn = true;
+                  break;
+                 }
+              }
+            if(!continuationDn)
+               continue;
 
-         if(price >= zBot && price <= zTop)
-         {
-            outPrice = (zTop + zBot) * 0.5;
-            if(causal) outTag = requiredTag;
-            return true;
-         }
-      }
-   }
+            if(price >= zBot && price <= zTop)
+              {
+               outPrice = (zTop + zBot) * 0.5;
+               if(causal)
+                  outTag = requiredTag;
+               return true;
+              }
+           }
+     }
 
    return false;
-}
+  }
 //+------------------------------------------------------------------+
 //|                                                                  |
 //+------------------------------------------------------------------+
@@ -856,44 +874,6 @@ bool SM_Detect_SMTDivergence(ENUM_TRADE_DIRECTION dir)
    return HasSMTConfirmation(dir == DIR_BULLISH);
   }
 
-//+------------------------------------------------------------------+
-//|                                                                  |
-//+------------------------------------------------------------------+
-bool SM_Detect_PremiumDiscount(ENUM_TRADE_DIRECTION dir)
-  {
-   if(!InpUsePremiumDiscount)
-      return true;
-   return IsZoneAligned(dir == DIR_BULLISH);
-  }
-
-//+------------------------------------------------------------------+
-//|                                                                  |
-//+------------------------------------------------------------------+
-bool SM_Detect_StackedPDA(ENUM_TRADE_DIRECTION dir)
-  {
-   bool bull = (dir == DIR_BULLISH);
-   int idx = GetBestStack(bull);
-   if(idx < 0)
-      return false;
-
-   SPDStack stack = g_pdStacks[idx];
-
-// Ensure directional consistency
-   if(stack.direction != (bull ? DIR_BULLISH : DIR_BEARISH))
-      return false;
-
-// Enforce minimum confluence depth (SM-friendly replacement)
-   if(stack.stackCount < InpMinStackCount)
-      return false;
-
-// Keep quality filter from legacy validator
-   if(stack.stackStrength < 20)
-      return false;
-
-   double price = iClose(_Symbol, PERIOD_CURRENT, 0);
-   return ZonesOverlap(stack.zoneTop, stack.zoneBottom,
-                       price + _Point*2, price - _Point*2);
-  }
 
 //+------------------------------------------------------------------+
 //|                                                                  |
@@ -923,7 +903,7 @@ bool SM_Detect_Killzone() { return IsInKillzone(); }
 //+------------------------------------------------------------------+
 bool SM_Detect_AMDDistribution(ENUM_TRADE_DIRECTION dir)
   {
-   if(!InpDetectAMD)
+   if(!g_needDetectAMD)
       return true;
    if(g_amdPhase.currentPhase != AMD_DISTRIBUTION)
       return false;
@@ -935,7 +915,7 @@ bool SM_Detect_AMDDistribution(ENUM_TRADE_DIRECTION dir)
 //+------------------------------------------------------------------+
 bool SM_Detect_AMDManipulation(ENUM_TRADE_DIRECTION dir)
   {
-   if(!InpDetectAMD)
+   if(!g_needDetectAMD)
       return true;
    if(g_amdPhase.currentPhase != AMD_MANIPULATION)
       return false;
@@ -947,7 +927,7 @@ bool SM_Detect_AMDManipulation(ENUM_TRADE_DIRECTION dir)
 //+------------------------------------------------------------------+
 bool SM_Detect_AMDAccumulation()
   {
-   if(!InpDetectAMD)
+   if(!g_needDetectAMD)
       return true;
    return (g_amdPhase.currentPhase == AMD_ACCUMULATION);
   }
@@ -961,7 +941,7 @@ bool SM_CheckElementSatisfied(ENUM_SM_ELEMENT elem, ENUM_TF_LAYER tfLay,
                               int &outTag, double &outPrice)
   {
    outTag = -1;
-   outPrice = 0;
+   outPrice = 0.0;
    ENUM_TRADE_DIRECTION dir = SM_GetStageDirection(inst, cfg);
 
 // Direction-independent elements first
@@ -974,73 +954,100 @@ bool SM_CheckElementSatisfied(ENUM_SM_ELEMENT elem, ENUM_TF_LAYER tfLay,
 
    if(dir == DIR_NONE)
       return false;
-
+   bool useCausal = cfg.causalLink;
    switch(elem)
      {
+      case SM_ELEM_NONE:
+         return true;
+
       case SM_ELEM_CHOCH_BREAK:
         {
-         ENUM_TRADE_DIRECTION d2;
-         if(SM_Detect_ChoChBreak(tfLay, d2, outPrice))
-            return (dir == DIR_NONE || dir == d2);
-         return false;
+         ENUM_TRADE_DIRECTION d = DIR_NONE;
+         double p = 0.0;
+         if(!SM_Detect_ChoChBreak(tfLay, d, p))
+            return false;
+         // inst is const, so we do not modify inst.direction here.
+         outTag = (g_lastSMEvent.valid ? g_lastSMEvent.tag : -1);
+         outPrice = p;
+         return true;
         }
+
       case SM_ELEM_BOS:
          return SM_Detect_BOS(tfLay, dir);
+
       case SM_ELEM_EXT_SWEEP:
          return SM_Detect_ExtSweep(tfLay, dir);
+
       case SM_ELEM_JUDAS_SWING:
         {
-         ENUM_TRADE_DIRECTION jd;
-         if(SM_Detect_Judas(jd))
-            return (dir == DIR_NONE || dir == jd);
-         return false;
+         ENUM_TRADE_DIRECTION jd = DIR_NONE;
+         if(!SM_Detect_Judas(jd))
+            return false;
+         // inst is const, so we do not modify inst.direction here.
+         return (dir == DIR_NONE || jd == dir);
         }
+
       case SM_ELEM_DISPLACEMENT:
          return SM_Detect_Displacement(tfLay, dir);
-      case SM_ELEM_ORDER_BLOCK:
-         return SM_Detect_OB(tfLay, dir, cfg.causalLink, outTag, outPrice);
-      case SM_ELEM_FVG:
-         return SM_Detect_FVG(tfLay, dir, cfg.causalLink, outTag, outPrice);
-      case SM_ELEM_IFVG:
-         return SM_Detect_IFVG(tfLay, dir, cfg.causalLink, outTag, outPrice);
-      case SM_ELEM_FVG_CE:
-         return SM_Detect_FVG_CE(tfLay, dir, cfg.causalLink, outTag, outPrice);
-      case SM_ELEM_VOLUME_IMBALANCE:
-         return SM_Detect_VolumeImbalance(tfLay, dir, cfg.causalLink, outTag, outPrice);
-      case SM_ELEM_LIQUIDITY_VOID:
-         return SM_Detect_LiquidityVoid(tfLay, dir, cfg.causalLink, outTag, outPrice);
-      case SM_ELEM_BREAKER:
-         return SM_Detect_Breaker(tfLay, dir, cfg.causalLink, outTag, outPrice);
-      case SM_ELEM_MITIGATION:
-         return SM_Detect_Mitigation(tfLay, dir, cfg.causalLink, outTag, outPrice);
-      case SM_ELEM_OTE_ZONE:
-         return SM_Detect_OTE(tfLay, dir);
+
       case SM_ELEM_BODY_CLOSE:
          return SM_Detect_BodyClose(tfLay, dir);
+
+      case SM_ELEM_ORDER_BLOCK:
+         return SM_Detect_OB(tfLay, dir, useCausal, outTag, outPrice);
+
+      case SM_ELEM_FVG:
+         return SM_Detect_FVG(tfLay, dir, useCausal, outTag, outPrice);
+
+      case SM_ELEM_IFVG:
+         return SM_Detect_IFVG(tfLay, dir, useCausal, outTag, outPrice);
+
+      case SM_ELEM_FVG_CE:
+         return SM_Detect_FVG_CE(tfLay, dir, useCausal, outTag, outPrice);
+
+      case SM_ELEM_VOLUME_IMBALANCE:
+         return SM_Detect_VolumeImbalance(tfLay, dir, useCausal, outTag, outPrice);
+
+      case SM_ELEM_LIQUIDITY_VOID:
+         return SM_Detect_LiquidityVoid(tfLay, dir, useCausal, outTag, outPrice);
+
+      case SM_ELEM_BREAKER:
+         return SM_Detect_Breaker(tfLay, dir, useCausal, outTag, outPrice);
+
+      case SM_ELEM_MITIGATION:
+         return SM_Detect_Mitigation(tfLay, dir, useCausal, outTag, outPrice);
+
+      case SM_ELEM_OTE_ZONE:
+         return SM_Detect_OTE(tfLay, dir);
+
       case SM_ELEM_RETRACE_TO_EZ:
          return SM_Detect_RetraceToEZ(dir);
+
       case SM_ELEM_SMT_DIVERGENCE:
          return SM_Detect_SMTDivergence(dir);
-      case SM_ELEM_PREMIUM_DISCOUNT:
-         return SM_Detect_PremiumDiscount(dir);
-      case SM_ELEM_STACKED_PDA:
-         return SM_Detect_StackedPDA(dir);
+
       case SM_ELEM_DR_TARGET_AREA:
          return SM_Detect_DRTarget(tfLay, dir);
+
       case SM_ELEM_AMD_DISTRIBUTION:
          return SM_Detect_AMDDistribution(dir);
+
       case SM_ELEM_AMD_MANIPULATION:
          return SM_Detect_AMDManipulation(dir);
+
       case SM_ELEM_PROVIDER1_SIGNAL:
          return SM_Detect_ProviderSignal(0, dir, outPrice);
+
       case SM_ELEM_PROVIDER2_SIGNAL:
          return SM_Detect_ProviderSignal(1, dir, outPrice);
+
       case SM_ELEM_PROVIDER3_SIGNAL:
          return SM_Detect_ProviderSignal(2, dir, outPrice);
+
       default:
          return false;
      }
   }
 
-#endif
+#endif // ICT_SMDETECTORS_MQH
 //+------------------------------------------------------------------+
