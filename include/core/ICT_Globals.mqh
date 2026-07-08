@@ -44,6 +44,18 @@ datetime g_lastStatsUpdate = 0;
 //+------------------------------------------------------------------+
 //|                  SECTION Telemetry - performance                 |
 //+------------------------------------------------------------------+
+#define ICT_PERF_WINDOW 50
+
+enum ENUM_PERF_BOTTLENECK
+{
+   PERF_BOTTLENECK_NONE = 0,
+   PERF_BOTTLENECK_STRUCT,
+   PERF_BOTTLENECK_NARR,
+   PERF_BOTTLENECK_SM,
+   PERF_BOTTLENECK_TRADE,
+   PERF_BOTTLENECK_DASH
+};
+
 struct SPerfTelemetry
 {
    ulong tickStartUs;
@@ -58,6 +70,36 @@ struct SPerfTelemetry
    int skippedFamilies;
    int skippedDetectors;
 
+   // Rolling averages (last N ticks), optimized with running sums
+   ulong rollingStruct[ICT_PERF_WINDOW];
+   ulong rollingNarrative[ICT_PERF_WINDOW];
+   ulong rollingSm[ICT_PERF_WINDOW];
+   ulong rollingTrade[ICT_PERF_WINDOW];
+   ulong rollingDash[ICT_PERF_WINDOW];
+   ulong rollingTotal[ICT_PERF_WINDOW];
+
+   ulong sumStruct;
+   ulong sumNarrative;
+   ulong sumSm;
+   ulong sumTrade;
+   ulong sumDash;
+   ulong sumTotal;
+
+   int rollingIdx;
+   int rollingCount;
+
+   ulong avgStructUs;
+   ulong avgNarrativeUs;
+   ulong avgSmUs;
+   ulong avgTradeUs;
+   ulong avgDashUs;
+   ulong avgTotalUs;
+
+   ENUM_PERF_BOTTLENECK bottleneck;
+   string bottleneckText;
+
+   bool warnExceeded;
+
    void Reset()
    {
       tickStartUs = 0;
@@ -70,6 +112,116 @@ struct SPerfTelemetry
       loadedFamilies = 0;
       skippedFamilies = 0;
       skippedDetectors = 0;
+      warnExceeded = false;
+   }
+
+   void InitRolling()
+   {
+      for(int i = 0; i < ICT_PERF_WINDOW; i++)
+      {
+         rollingStruct[i] = 0;
+         rollingNarrative[i] = 0;
+         rollingSm[i] = 0;
+         rollingTrade[i] = 0;
+         rollingDash[i] = 0;
+         rollingTotal[i] = 0;
+      }
+
+      sumStruct = 0;
+      sumNarrative = 0;
+      sumSm = 0;
+      sumTrade = 0;
+      sumDash = 0;
+      sumTotal = 0;
+
+      rollingIdx = 0;
+      rollingCount = 0;
+
+      avgStructUs = 0;
+      avgNarrativeUs = 0;
+      avgSmUs = 0;
+      avgTradeUs = 0;
+      avgDashUs = 0;
+      avgTotalUs = 0;
+
+      bottleneck = PERF_BOTTLENECK_NONE;
+      bottleneckText = "NONE";
+      warnExceeded = false;
+   }
+
+   void UpdateRolling()
+   {
+      sumStruct -= rollingStruct[rollingIdx];
+      sumNarrative -= rollingNarrative[rollingIdx];
+      sumSm -= rollingSm[rollingIdx];
+      sumTrade -= rollingTrade[rollingIdx];
+      sumDash -= rollingDash[rollingIdx];
+      sumTotal -= rollingTotal[rollingIdx];
+
+      rollingStruct[rollingIdx] = structUs;
+      rollingNarrative[rollingIdx] = narrativeUs;
+      rollingSm[rollingIdx] = smUs;
+      rollingTrade[rollingIdx] = tradeUs;
+      rollingDash[rollingIdx] = dashUs;
+      rollingTotal[rollingIdx] = totalUs;
+
+      sumStruct += structUs;
+      sumNarrative += narrativeUs;
+      sumSm += smUs;
+      sumTrade += tradeUs;
+      sumDash += dashUs;
+      sumTotal += totalUs;
+
+      if(rollingCount < ICT_PERF_WINDOW)
+         rollingCount++;
+
+      rollingIdx++;
+      if(rollingIdx >= ICT_PERF_WINDOW)
+         rollingIdx = 0;
+
+      if(rollingCount > 0)
+      {
+         avgStructUs = sumStruct / (ulong)rollingCount;
+         avgNarrativeUs = sumNarrative / (ulong)rollingCount;
+         avgSmUs = sumSm / (ulong)rollingCount;
+         avgTradeUs = sumTrade / (ulong)rollingCount;
+         avgDashUs = sumDash / (ulong)rollingCount;
+         avgTotalUs = sumTotal / (ulong)rollingCount;
+      }
+   }
+
+   void UpdateBottleneck()
+   {
+      bottleneck = PERF_BOTTLENECK_STRUCT;
+      bottleneckText = "STRUCT";
+      ulong top = structUs;
+
+      if(narrativeUs > top)
+      {
+         top = narrativeUs;
+         bottleneck = PERF_BOTTLENECK_NARR;
+         bottleneckText = "NARR";
+      }
+
+      if(smUs > top)
+      {
+         top = smUs;
+         bottleneck = PERF_BOTTLENECK_SM;
+         bottleneckText = "SM";
+      }
+
+      if(tradeUs > top)
+      {
+         top = tradeUs;
+         bottleneck = PERF_BOTTLENECK_TRADE;
+         bottleneckText = "TRADE";
+      }
+
+      if(dashUs > top)
+      {
+         bottleneck = PERF_BOTTLENECK_DASH;
+         bottleneckText = "DASH";
+      }
    }
 };
 

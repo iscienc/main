@@ -169,7 +169,8 @@ input int                     InpSM_GlobalTimeout = 80;
 input bool                    InpSM_ShowOnChart = true;
 input bool                    InpSM_ShowOnDashboard = true;
 input bool                    InpSM_ShowLoadedElementsOnChart = true; // Single chart-visibility input
-input bool InpSM_ShowPerformanceTelemetry = true;
+input bool                    InpSM_ShowPerformanceTelemetry = true;
+input int                     InpSM_PerfWarnThresholdUs = 6000; // auto-warn threshold per tick (microseconds)
 
 // Stage 1
 input ENUM_SM_ELEMENT          InpSM_Trig_Primary = SM_ELEM_CHOCH_BREAK;
