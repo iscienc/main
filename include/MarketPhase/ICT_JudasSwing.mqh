@@ -20,7 +20,7 @@
 //+------------------------------------------------------------------+
 void DetectJudasSwings()
 {
-   if(!InpDetectJudasSwing)
+   if(!g_needDetectJudas)
       return;
    
    double atr = GetATR();
@@ -152,7 +152,7 @@ void DrawJudasSwingVisualization()
 //+------------------------------------------------------------------+
 bool HasActiveJudasSwing()
 {
-   if(!InpDetectJudasSwing)
+   if(!g_needDetectJudas)
       return false;
    
    // Judas is active for a limited time after detection
@@ -181,7 +181,7 @@ ENUM_TRADE_DIRECTION GetJudasSwingDirection()
 //+------------------------------------------------------------------+
 int GetJudasSwingScoreBonus()
 {
-   if(!InpDetectJudasSwing)
+   if(!g_needDetectJudas)
       return 0;
    
    if(!HasActiveJudasSwing())

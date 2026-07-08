@@ -34,7 +34,7 @@ bool InitializeSMT()
 //+------------------------------------------------------------------+
 void UpdateSMTAnalysis()
 {
-   if(!InpUseSMT || InpSMT_Pair == SMT_PAIR_NONE)
+   if(!g_needDetectSMT || InpSMT_Pair == SMT_PAIR_NONE)
    {
       g_smtDivergence.status = SMT_NONE;
       return;
@@ -293,7 +293,7 @@ int CalculateSMTStrength(int mainBar, int smtBar)
 //+------------------------------------------------------------------+
 bool HasSMTConfirmation(bool forBullish)
 {
-   if(!InpUseSMT)
+   if(!g_needDetectSMT)
       return true; // SMT disabled, pass
    
    if(g_smtDivergence.status == SMT_NONE)
@@ -310,7 +310,7 @@ bool HasSMTConfirmation(bool forBullish)
 //+------------------------------------------------------------------+
 int GetSMTScoreBonus()
 {
-   if(!InpUseSMT)
+   if(!g_needDetectSMT)
       return 0;
    
    if(g_smtDivergence.status == SMT_NONE || !g_smtDivergence.isConfirmed)

@@ -34,7 +34,7 @@ bool InitializeMarketPhase()
 //+------------------------------------------------------------------+
 void UpdateMarketPhase()
   {
-   if(!InpDetectAMD)
+   if(!g_needDetectAMD)
       return;
 
 // Determine current phase based on price action
@@ -285,7 +285,7 @@ void DetermineExpectedDirection(ENUM_AMD_PHASE phase)
 //+------------------------------------------------------------------+
 int GetAMDPhaseScoreBonus()
   {
-   if(!InpDetectAMD)
+   if(!g_needDetectAMD)
       return 0;
 
    int bonus = 0;
