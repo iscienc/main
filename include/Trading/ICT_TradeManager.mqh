@@ -41,6 +41,20 @@ bool ExecuteTrade()
 {
    if(!g_hasValidSignal || !g_currentSignal.isValid)
       return false;
+      
+         // ★ FIX 2 (defensive): re-confirm the originating SM chain is still
+   //   tradable at execution time.
+   if(g_smActiveEntryInstance >= 0 && g_smActiveEntryInstance < SM_MAX_INSTANCES)
+   {
+      string execReason = "";
+      if(!NAR_IsChainTradable(g_smInstances[g_smActiveEntryInstance], execReason))
+      {
+         Print("ExecuteTrade blocked: chain not tradable (", execReason, ")");
+         g_hasValidSignal = false;
+         g_currentSignal.isValid = false;
+         return false;
+      }
+   }
    
    if(!PreTradeChecks())
       return false;
