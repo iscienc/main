@@ -374,7 +374,21 @@ void SM_TrySpawnTrigger()
    ni.stageTime[0]    = TimeCurrent();
    ni.stageBarCtr[0]  = g_smBarCounter;
    ni.currentStage    = 1;
-   ni.direction       = g_currentDirection;
+   
+// ★ FIX 1: Resolve trigger direction via the trigger stage's dirPolicy
+   //          instead of hardcoding the DR bias. Makes SM_DIR_FROM_AMD,
+   //          SM_DIR_FIXED_*, etc. actually take effect at the trigger.
+   ni.direction = SM_GetStageDirection(*ni, g_smStageCfg[0]);
+   if(ni.direction == DIR_NONE)
+      ni.direction = g_currentDirection;   // safe fallback
+
+   // ★ FIX 1b: Seed counter-dir flag at birth from the ENTRY stage policy
+   ENUM_SM_DIRECTION_POLICY entPol = g_smStageCfg[SM_MAX_STAGES-1].dirPolicy;
+   ni.isCounterDirPreset = (entPol == SM_DIR_COUNTER_TRIGGER ||
+                            entPol == SM_DIR_INVERT_TRIGGER ||
+                            entPol == SM_DIR_FIXED_BULL ||
+                            entPol == SM_DIR_FIXED_BEAR);
+                            
    ni.triggerPrice    = (pprice > 0) ? pprice : iClose(_Symbol, PERIOD_CURRENT, 0);
    ni.birthEventTag   = currentEventTag;
    ni.triggerEventTag = currentEventTag;
@@ -403,13 +417,37 @@ void GenerateSMTradeSignal()
       return;
    if(!g_smInstances[idx].active || !g_smInstances[idx].stageDone[SM_MAX_STAGES-1])
       return;
-
-   g_currentSignal.Reset();
-//bool isBull = (g_smInstances[idx].direction == DIR_BULLISH);
-// ★ UPDATED: Use resolvedEntryDir (may differ from trigger direction)
+      
+         // ★ FIX 2: Gate BEFORE committing any signal state. Previously the
+   //          tradability check ran AFTER g_hasValidSignal was set true,
+   //          so a non-tradable chain still leaked into ExecuteTrade().
+   string reason = "";
+   if(!NAR_IsChainTradable(g_smInstances[idx], reason))
+      {
+      SM_DeactivateInstance(idx);
+      g_smActiveEntryInstance = -1;
+      g_hasValidSignal = false;
+      g_currentSignal.isValid = false;
+      return;
+      }
+      
+   // Resolve actual trade direction (counter-dir presets flip here)
    ENUM_TRADE_DIRECTION tradeDir = g_smInstances[idx].resolvedEntryDir;
    if(tradeDir == DIR_NONE)
       tradeDir = g_smInstances[idx].direction; // fallback
+      
+         // ★ FIX 3: Never emit a phantom SELL when direction is unresolved.
+   if(tradeDir == DIR_NONE)
+      {
+      SM_DeactivateInstance(idx);
+      g_smActiveEntryInstance = -1;
+      g_hasValidSignal = false;
+      g_currentSignal.isValid = false;
+      return;
+      }
+
+   g_currentSignal.Reset();
+
    bool isBull = (tradeDir == DIR_BULLISH);
    g_currentSignal.type       = isBull ? SIGNAL_BUY : SIGNAL_SELL;
    g_currentSignal.time       = TimeCurrent();
@@ -432,14 +470,10 @@ void GenerateSMTradeSignal()
       Shadow_RecordCandidate(g_currentSignal, g_smInstances[idx].id, g_smInstances[idx].causalTagUsed);
      }
 
-// Deactivate the instance so it can't re-fire
-   string reason = "";
-   if(!NAR_IsChainTradable(g_smInstances[idx], reason))
-     {
-      SM_DeactivateInstance(idx);
-      g_smActiveEntryInstance = -1;
-      return;
-     }
+   else
+      {
+      g_hasValidSignal = false;   // validation failed: don't leak to ExecuteTrade
+      }
   }
 //+------------------------------------------------------------------+
 //| Fill ML feature vector with SM narrative data                    |
