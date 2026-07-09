@@ -220,6 +220,20 @@ bool SM_EvaluateStage(int instIdx, int s)
       inst.triggerPrice    = (pprice > 0) ? pprice : iClose(_Symbol, PERIOD_CURRENT, 0);
       inst.birthEventTag   = g_lastSMEvent.valid ? g_lastSMEvent.tag : -1;
      // inst.triggerEventTag = g_lastSMEvent.valid ? g_lastSMEvent.tag : -1;
+     
+     // ★ FIX 1: Detect and mark counter-direction instances
+   bool counterDir = false;
+   for(int cs = 0; cs < SM_MAX_STAGES; cs++)
+   {
+      ENUM_SM_DIRECTION_POLICY p = g_smStageCfg[cs].dirPolicy;
+      if(p == SM_DIR_COUNTER_TRIGGER || p == SM_DIR_INVERT_TRIGGER ||
+         p == SM_DIR_FIXED_BULL      || p == SM_DIR_FIXED_BEAR)
+      {
+         counterDir = true;
+         break;
+      }
+   }
+   inst.isCounterDirPreset = counterDir;
      }
    if(s == 1)
      {
