@@ -1,7 +1,7 @@
-//+------------------------------------------------------------------+
+﻿//+------------------------------------------------------------------+
 //|                     ICT_SignalEngine.mqh                          |
 //|              Signal Generation with Entry Logic                   |
-//|                    ICT Unified Professional EA v9.0              |
+//|                    ICT Unified Professional EA v12.0              |
 //+------------------------------------------------------------------+
 #ifndef ICT_SIGNALENGINE_MQH
 #define ICT_SIGNALENGINE_MQH
@@ -29,46 +29,62 @@ bool InitializeSignalEngine()
 //+------------------------------------------------------------------+
 //|              SECTION 2: MAIN SIGNAL PROCESSING                    |
 //+------------------------------------------------------------------+
+// FIXED ProcessEntrySignals():
 void ProcessEntrySignals()
 {
-   g_hasValidSignal = false;
-   g_currentSignal.Reset();
-
-   if(!InpEnableTrading || !g_tradingEnabled)
-      return;
-
-   if(!CheckAllFilters())
-      return;
-
-   ENUM_TRADE_DIRECTION direction = g_currentDirection;
-   if(direction == DIR_NONE)
-      return;
-
-   bool isBullish = (direction == DIR_BULLISH);
+   if(!InpEnableTrading || !g_tradingEnabled) return;
+   if(!CheckAllFilters()) return;
 
    string narReason = "";
-   if(!IsNarrativeTradable(direction, narReason))
-      return;
+   bool tradeFound = false;
+   bool isBullish = false;
 
-   if(!CheckForEntryTrigger(isBullish))
-      return;
-
-   if(!ValidateEntryConditions(isBullish))
-      return;
-
-   if(!CheckEntryConfirmations(isBullish))
-      return;
-
-   if(g_mlInitialized && InpML_Mode != ML_OFF && ShouldMLBlockTrade())
+   // Step 1: Try aligned direction (DR bias) — existing aligned presets (1-6)
+   ENUM_TRADE_DIRECTION direction = g_currentDirection;
+   if(direction != DIR_NONE && IsNarrativeTradable(direction, narReason))
    {
-      RecordPrediction(g_mlPrediction.probability, false, 0);
-      return;
+      isBullish  = (direction == DIR_BULLISH);
+      tradeFound = true;
    }
 
-   if(!CheckExternalAgreement(isBullish))
-      return;
+   // Step 2: Try counter-direction chains (presets 7, 8, CUSTOM counter-dir)
+   if(!tradeFound)
+   {
+      // DIR_NONE = accept any resolvedEntryDir
+      if(IsNarrativeTradable(DIR_NONE, narReason))
+      {
+         ENUM_TRADE_DIRECTION resolvedDir = GetReadyInstanceDirection();
+         if(resolvedDir != DIR_NONE)
+         {
+            isBullish  = (resolvedDir == DIR_BULLISH);
+            tradeFound = true;
+         }
+      }
+   }
 
+   if(!tradeFound) return;
+
+   if(!CheckForEntryTrigger(isBullish)) return;
+   if(!ValidateEntryConditions(isBullish)) return;
+   if(!CheckEntryConfirmations(isBullish)) return;
+   if(g_mlInitialized && InpML_Mode != ML_OFF && ShouldMLBlockTrade())
+   { RecordPrediction(g_mlPrediction.probability, false, 0); return; }
+   if(!CheckExternalAgreement(isBullish)) return;
    GenerateTradeSignal(isBullish);
+}
+
+// NEW helper — returns resolvedEntryDir of first fully-staged active instance
+ENUM_TRADE_DIRECTION GetReadyInstanceDirection()
+{
+   for(int i = 0; i < SM_MAX_INSTANCES; i++)
+   {
+      if(!g_smInstances[i].active) continue;
+      if(!g_smInstances[i].stageDone[SM_MAX_STAGES - 1]) continue;
+      ENUM_TRADE_DIRECTION d = g_smInstances[i].resolvedEntryDir;
+      if(d == DIR_NONE) d = g_smInstances[i].direction;
+      return d;
+   }
+   return DIR_NONE;
 }
 
 //+------------------------------------------------------------------+
