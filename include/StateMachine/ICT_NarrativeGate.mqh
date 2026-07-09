@@ -69,25 +69,26 @@ int NAR_CountStageDone(const SSMInstance &inst)
 //+------------------------------------------------------------------+
 //|                                                                  |
 //+------------------------------------------------------------------+
+// FIXED NAR_HasRequiredNarrativeAtEntry():
 bool NAR_HasRequiredNarrativeAtEntry(const SSMInstance &inst)
-  {
-   bool isBull = (inst.direction == DIR_BULLISH);
+{
+   // Use resolvedEntryDir (actual trade direction), fall back to trigger if not set
+   ENUM_TRADE_DIRECTION entryDir = inst.resolvedEntryDir;
+   if(entryDir == DIR_NONE) entryDir = inst.direction;  // fallback for aligned presets
+
+   bool isBull = (entryDir == DIR_BULLISH);  // actual entry bias  CORRECT
    int idx = -1;
 
-// At least one actionable first-order narrative element
-   if(IsPriceAtOrderBlock(isBull, idx))
-      return true;
-   if(IsPriceInFVG(isBull, idx))
-      return true;
-   if(IsPriceAtBreakerBlock(isBull, idx))
-      return true;
-   if(IsPriceAtMitigationBlock(isBull, idx))
-      return true;
-   if(IsPriceInOTEZone())
-      return true;
+   // For BEARISH_SWEEP_BULLISH_ENTRY:
+   //   resolvedEntryDir = DIR_BULLISH  ->  isBull = true  ->  searches BULLISH OBs/FVGs  CORRECT
 
+   if(IsPriceAtOrderBlock(isBull, idx))       return true;
+   if(IsPriceInFVG(isBull, idx))              return true;
+   if(IsPriceAtBreakerBlock(isBull, idx))     return true;
+   if(IsPriceAtMitigationBlock(isBull, idx))  return true;
+   if(IsPriceInOTEZone())                     return true;
    return false;
-  }
+}
 
 //+------------------------------------------------------------------+
 //|                                                                  |
@@ -120,11 +121,19 @@ bool NAR_IsChainTradable(const SSMInstance &inst, string &reason)
    ENUM_TRADE_DIRECTION checkDir = inst.resolvedEntryDir;
    if(checkDir == DIR_NONE)
       checkDir = inst.direction; // fallback
-   if(!NAR_DirectionAligned(checkDir))
-     {
-      reason = "direction_mismatch";
-      return false;
-     }
+      // Skip DR-bias alignment check for intentional counter-direction chains:
+if(!inst.isCounterDirPreset && !NAR_DirectionAligned(checkDir))
+{
+   reason = "direction_mismatch";
+   return false;
+}
+// Counter-dir chains pass through — their reversal logic IS intentional
+
+   //if(!NAR_DirectionAligned(checkDir))
+    // {
+    //  reason = "direction_mismatch";
+    //  return false;
+   //  }
 
    if(!NAR_EnvironmentOK(inst.direction))
      {

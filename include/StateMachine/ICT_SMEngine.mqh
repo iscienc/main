@@ -207,19 +207,19 @@ bool SM_EvaluateStage(int instIdx, int s)
    inst.stageTime[s]    = TimeCurrent();
    inst.stageBarCtr[s]  = g_smBarCounter;
 // ★ NEW: Capture resolved dir at Entry stage
-   if(s == SM_MAX_STAGES - 1)
-     {
-      inst.resolvedEntryDir = SM_GetStageDirection(*inst, cfg);
-     }
+   //if(s == SM_MAX_STAGES - 1)
+     //{
+    //  inst.resolvedEntryDir = SM_GetStageDirection(*inst, cfg);
+   //  }    //commented because of // BUG: PREMATURE capture — fires BEFORE if(s==0) sets inst.direction
 
    if(s == 0)
      {
-      ENUM_TRADE_DIRECTION d = SM_GetStageDirection(inst, cfg);
+      ENUM_TRADE_DIRECTION d = SM_GetStageDirection(*inst, cfg);
       if(d != DIR_NONE)
          inst.direction = d;
       inst.triggerPrice    = (pprice > 0) ? pprice : iClose(_Symbol, PERIOD_CURRENT, 0);
       inst.birthEventTag   = g_lastSMEvent.valid ? g_lastSMEvent.tag : -1;
-      inst.triggerEventTag = g_lastSMEvent.valid ? g_lastSMEvent.tag : -1;
+     // inst.triggerEventTag = g_lastSMEvent.valid ? g_lastSMEvent.tag : -1;
      }
    if(s == 1)
      {
@@ -232,9 +232,13 @@ bool SM_EvaluateStage(int instIdx, int s)
       inst.barsToEntry     = g_smBarCounter - inst.stageBarCtr[0];
       inst.totalBarsInChain = inst.barsToEntry;
       // ★ NEW: Capture resolved direction at Entry stage
-      inst.resolvedEntryDir = SM_GetStageDirection(*inst, cfg);
+      inst.resolvedEntryDir = SM_GetStageDirection(*inst, cfg);  // single capture  CORRECT
       if(inst.resolvedEntryDir == DIR_NONE)
          inst.resolvedEntryDir = inst.direction; // fallback
+         // Mark counter-direction chains:
+   inst.isCounterDirPreset = (inst.resolvedEntryDir != DIR_NONE &&
+                               inst.direction != DIR_NONE &&
+                               inst.resolvedEntryDir != inst.direction);
      }
 
    if(s < SM_MAX_STAGES - 1)
