@@ -2044,6 +2044,7 @@ public:
    int                   id;
    ENUM_TRADE_DIRECTION direction; // Set by Trigger
    ENUM_TRADE_DIRECTION resolvedEntryDir; // ★ NEW: Resolved at Entry stage
+   bool              isCounterDirPreset;   // NEW: true when resolvedEntryDir != inst.direction
    datetime              stageTime[SM_MAX_STAGES];
    int                   stageBarCtr[SM_MAX_STAGES];   // NEW: monotonic bar counter
    bool                  stageDone[SM_MAX_STAGES];
@@ -2060,12 +2061,14 @@ public:
    int                   barsToEntry;
    int                   totalBarsInChain;
 
+
    void              Reset()
      {
       active = false;
       id = -1;
       direction = DIR_NONE;
       resolvedEntryDir = DIR_NONE; // ★ NEW: initialize
+      isCounterDirPreset = false;
       ArrayInitialize(stageTime, 0);
       ArrayInitialize(stageBarCtr, 0);    // NEW
       ArrayInitialize(stageDone, false);
