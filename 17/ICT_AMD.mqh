@@ -1,4 +1,4 @@
-﻿//+------------------------------------------------------------------+
+//+------------------------------------------------------------------+
 //|                          ICT_AMD.mqh                             |
 //|       Accumulation, Manipulation, Distribution Detection         |
 //|                ICT Unified Professional EA v16.1                |
@@ -10,6 +10,9 @@
 #include "../Core/ICT_Globals.mqh"
 #include "../Core/ICT_Utilities.mqh"
 
+//+------------------------------------------------------------------+
+//|                                                                  |
+//+------------------------------------------------------------------+
 bool InitializeMarketPhase()
   {
    g_amdPhase.Reset();
@@ -17,6 +20,9 @@ bool InitializeMarketPhase()
    return true;
   }
 
+//+------------------------------------------------------------------+
+//|                                                                  |
+//+------------------------------------------------------------------+
 double GetAMDRangeHigh()
   {
    double h = 0.0;
@@ -29,6 +35,9 @@ double GetAMDRangeHigh()
    return h;
   }
 
+//+------------------------------------------------------------------+
+//|                                                                  |
+//+------------------------------------------------------------------+
 double GetAMDRangeLow()
   {
    double l = DBL_MAX;
@@ -41,6 +50,9 @@ double GetAMDRangeLow()
    return (l == DBL_MAX) ? 0.0 : l;
   }
 
+//+------------------------------------------------------------------+
+//|                                                                  |
+//+------------------------------------------------------------------+
 void UpdateMarketPhase()
   {
    if(!g_needDetectAMD)
@@ -48,6 +60,9 @@ void UpdateMarketPhase()
    DetectAMDPhase();
   }
 
+//+------------------------------------------------------------------+
+//|                                                                  |
+//+------------------------------------------------------------------+
 bool HasJudasPattern()
   {
    if(!g_needDetectJudas)
@@ -59,8 +74,12 @@ bool HasJudasPattern()
    return (reversalBar >= 0 && reversalBar <= InpJudasLookback);
   }
 
+//+------------------------------------------------------------------+
+//|                                                                  |
+//+------------------------------------------------------------------+
 void DetectAMDPhase()
   {
+  
    double atr = GetATR();
    if(atr <= 0.0)
       return;
@@ -92,6 +111,16 @@ void DetectAMDPhase()
    ENUM_AMD_PHASE detectedPhase = AMD_UNKNOWN;
    int confidence = 0;
 
+  // At the START of DetectAMDPhase()
+Print("=== AMD Detection Tick ===");
+Print("ATR: ", atr);
+Print("Range: ", currentRange, " (", (currentRange/atr), " ATR)");
+Print("Displacement: ", hasRecentDisplacement);
+Print("Sweep: ", hasRecentSweep);
+Print("BOS: ", hasRecentBOS);
+Print("Acc exists: ", (g_amdPhase.accumulationHigh > 0));
+Print("Manip exists: ", (g_amdPhase.manipulationHigh > 0));
+
    if(currentRange < atr * InpAccumulationRangeATR && !hasRecentDisplacement)
      {
       detectedPhase = AMD_ACCUMULATION;
@@ -101,21 +130,24 @@ void DetectAMDPhase()
       if(!hasRecentSweep)
          confidence = MathMin(confidence + 5, 80);
      }
-   else if(hasRecentSweep && !hasRecentBOS && accWasSeen)
-     {
-      detectedPhase = AMD_MANIPULATION;
-      confidence = HasJudasPattern() ? 85 : 70;
-     }
-   else if(hasRecentBOS && hasRecentDisplacement && manipWasSeen)
-     {
-      detectedPhase = AMD_DISTRIBUTION;
-      confidence = 80;
-      double expansionSize = MeasureExpansionSize();
-      if(expansionSize > atr * 2.0)
-         confidence = 95;
-      else if(expansionSize > atr * 1.0)
-         confidence = 85;
-     }
+   else
+      if(hasRecentSweep && !hasRecentBOS && accWasSeen)
+        {
+         detectedPhase = AMD_MANIPULATION;
+         confidence = HasJudasPattern() ? 85 : 70;
+        }
+      else
+         if(hasRecentBOS && hasRecentDisplacement && manipWasSeen)
+           {
+            detectedPhase = AMD_DISTRIBUTION;
+            confidence = 80;
+            double expansionSize = MeasureExpansionSize();
+            if(expansionSize > atr * 2.0)
+               confidence = 95;
+            else
+               if(expansionSize > atr * 1.0)
+                  confidence = 85;
+           }
 
    ENUM_AMD_PHASE previousPhase = g_amdPhase.currentPhase;
 
@@ -131,8 +163,9 @@ void DetectAMDPhase()
    int requiredConfirm = CONFIRM_ACC;
    if(detectedPhase == AMD_MANIPULATION)
       requiredConfirm = CONFIRM_MANIP;
-   else if(detectedPhase == AMD_DISTRIBUTION)
-      requiredConfirm = CONFIRM_DIST;
+   else
+      if(detectedPhase == AMD_DISTRIBUTION)
+         requiredConfirm = CONFIRM_DIST;
 
    if(detectedPhase != previousPhase)
      {
@@ -175,39 +208,88 @@ void DetectAMDPhase()
       if(g_amdPhase.accumulationStartTime == 0)
          g_amdPhase.accumulationStartTime = g_amdPhase.phaseStartTime;
      }
-   else if(detectedPhase == AMD_MANIPULATION)
-     {
-      if(g_amdPhase.manipulationHigh == 0.0 || rangeHigh > g_amdPhase.manipulationHigh)
-         g_amdPhase.manipulationHigh = rangeHigh;
-      if(g_amdPhase.manipulationLow == 0.0 || rangeLow < g_amdPhase.manipulationLow)
-         g_amdPhase.manipulationLow = rangeLow;
-      if(g_amdPhase.manipulationStartTime == 0)
-         g_amdPhase.manipulationStartTime = g_amdPhase.phaseStartTime;
-     }
-   else if(detectedPhase == AMD_DISTRIBUTION)
-     {
-      if(g_amdPhase.distributionHigh == 0.0 || rangeHigh > g_amdPhase.distributionHigh)
-         g_amdPhase.distributionHigh = rangeHigh;
-      if(g_amdPhase.distributionLow == 0.0 || rangeLow < g_amdPhase.distributionLow)
-         g_amdPhase.distributionLow = rangeLow;
-      if(g_amdPhase.distributionStartTime == 0)
-         g_amdPhase.distributionStartTime = g_amdPhase.phaseStartTime;
-     }
+   else
+      if(detectedPhase == AMD_MANIPULATION)
+        {
+         if(g_amdPhase.accumulationHigh == 0.0 || rangeHigh > g_amdPhase.accumulationHigh)
+            g_amdPhase.accumulationHigh = rangeHigh;
+         if(g_amdPhase.accumulationLow == 0.0 || rangeLow < g_amdPhase.accumulationLow)
+            g_amdPhase.accumulationLow = rangeLow;
+         if(g_amdPhase.accumulationStartTime == 0)
+            g_amdPhase.accumulationStartTime = g_amdPhase.phaseStartTime;
 
-   g_amdPhase.rangeHigh = GetAMDRangeHigh();
-   g_amdPhase.rangeLow = GetAMDRangeLow();
+         // Update range
+         g_amdPhase.rangeHigh = g_amdPhase.accumulationHigh;
+         g_amdPhase.rangeLow = g_amdPhase.accumulationLow;
 
+         Print("✓ Accumulation stored: H=", g_amdPhase.accumulationHigh,
+               " L=", g_amdPhase.accumulationLow);
+        }
+      // ✅ FIX 1A - ADD THIS BLOCK for Manipulation
+      else
+         if(detectedPhase == AMD_MANIPULATION)
+           {
+            if(g_amdPhase.manipulationHigh == 0.0 || rangeHigh > g_amdPhase.manipulationHigh)
+               g_amdPhase.manipulationHigh = rangeHigh;
+            if(g_amdPhase.manipulationHigh == 0.0 && rangeHigh != 0.0)
+               Print("ERROR: Failed to store manipulation high!");
+            if(g_amdPhase.manipulationLow == 0.0 || rangeLow < g_amdPhase.manipulationLow)
+               g_amdPhase.manipulationLow = rangeLow;
+            if(g_amdPhase.manipulationStartTime == 0)
+               g_amdPhase.manipulationStartTime = g_amdPhase.phaseStartTime;
+
+            // Update range to include manipulation
+            if(g_amdPhase.manipulationHigh > g_amdPhase.rangeHigh)
+               g_amdPhase.rangeHigh = g_amdPhase.manipulationHigh;
+            if(g_amdPhase.manipulationLow < g_amdPhase.rangeLow)
+               g_amdPhase.rangeLow = g_amdPhase.manipulationLow;
+
+            Print("✓ Manipulation stored: H=", g_amdPhase.manipulationHigh,
+                  " L=", g_amdPhase.manipulationLow);
+           }
+
+         // ✅ FIX 1A - ADD THIS BLOCK for Distribution
+         else
+            if(detectedPhase == AMD_DISTRIBUTION)
+              {
+               if(g_amdPhase.distributionHigh == 0.0 || rangeHigh > g_amdPhase.distributionHigh)
+                  g_amdPhase.distributionHigh = rangeHigh;
+               if(g_amdPhase.distributionLow == 0.0 || rangeLow < g_amdPhase.distributionLow)
+                  g_amdPhase.distributionLow = rangeLow;
+               if(g_amdPhase.distributionStartTime == 0)
+                  g_amdPhase.distributionStartTime = g_amdPhase.phaseStartTime;
+
+               // Update range to include distribution
+               if(g_amdPhase.distributionHigh > g_amdPhase.rangeHigh)
+                  g_amdPhase.rangeHigh = g_amdPhase.distributionHigh;
+               if(g_amdPhase.distributionLow < g_amdPhase.rangeLow)
+                  g_amdPhase.rangeLow = g_amdPhase.distributionLow;
+
+               Print("✓ Distribution stored: H=", g_amdPhase.distributionHigh,
+                     " L=", g_amdPhase.distributionLow);
+              }
+
+
+// ✅ FIX 1C - Add cycle completion detection
    if(detectedPhase == AMD_DISTRIBUTION &&
-      previousPhase == AMD_MANIPULATION &&
-      g_amdPhase.accumulationHigh > 0.0)
+      previousPhase != AMD_DISTRIBUTION &&
+      g_amdPhase.accumulationHigh > 0.0 &&
+      g_amdPhase.manipulationHigh > 0.0 &&
+      g_amdPhase.distributionHigh > 0.0)
      {
       g_amdPhase.amdCycle++;
-      Print("AMD full cycle completed. Cycle #", g_amdPhase.amdCycle);
+      double rangeSize = (g_amdPhase.rangeHigh - g_amdPhase.rangeLow) * 10000;
+      Print("✓ AMD CYCLE #", g_amdPhase.amdCycle, " COMPLETED");
+      Print("  Range: ", g_amdPhase.rangeLow, " to ", g_amdPhase.rangeHigh);
+      Print("  Size: ", rangeSize, " pips");
      }
 
    DetermineExpectedDirection(detectedPhase);
   }
 
+//+------------------------------------------------------------------+
+//|                                                                  |
+//+------------------------------------------------------------------+
 bool CheckRecentDisplacement(double atr, int lookback)
   {
    for(int i = 1; i <= lookback; i++)
@@ -218,6 +300,9 @@ bool CheckRecentDisplacement(double atr, int lookback)
    return false;
   }
 
+//+------------------------------------------------------------------+
+//|                                                                  |
+//+------------------------------------------------------------------+
 bool CheckRecentSweep(double atr, int lookback)
   {
    for(int i = 0; i < g_swingsCount; i++)
@@ -229,7 +314,7 @@ bool CheckRecentSweep(double atr, int lookback)
            {
             double minSweepSize = atr * InpManipulationSweepATR;
             double sweepRange = iHigh(_Symbol, PERIOD_CURRENT, sweepBar)
-                              - iLow(_Symbol, PERIOD_CURRENT, sweepBar);
+                                - iLow(_Symbol, PERIOD_CURRENT, sweepBar);
             if(sweepRange >= minSweepSize)
                return true;
            }
@@ -238,6 +323,9 @@ bool CheckRecentSweep(double atr, int lookback)
    return false;
   }
 
+//+------------------------------------------------------------------+
+//|                                                                  |
+//+------------------------------------------------------------------+
 bool CheckRecentBOS(int lookback)
   {
    SDealingRange *dr = g_isBullishActive ? GetPointer(g_bullDR) : GetPointer(g_bearDR);
@@ -250,6 +338,9 @@ bool CheckRecentBOS(int lookback)
    return false;
   }
 
+//+------------------------------------------------------------------+
+//|                                                                  |
+//+------------------------------------------------------------------+
 double MeasureExpansionSize()
   {
    double currentPrice = iClose(_Symbol, PERIOD_CURRENT, 0);
@@ -268,6 +359,9 @@ double MeasureExpansionSize()
    return 0.0;
   }
 
+//+------------------------------------------------------------------+
+//|                                                                  |
+//+------------------------------------------------------------------+
 void DetermineExpectedDirection(ENUM_AMD_PHASE phase)
   {
    switch(phase)
@@ -287,6 +381,9 @@ void DetermineExpectedDirection(ENUM_AMD_PHASE phase)
      }
   }
 
+//+------------------------------------------------------------------+
+//|                                                                  |
+//+------------------------------------------------------------------+
 string AMDPhaseToString(ENUM_AMD_PHASE phase)
   {
    switch(phase)
@@ -302,6 +399,9 @@ string AMDPhaseToString(ENUM_AMD_PHASE phase)
      }
   }
 
+//+------------------------------------------------------------------+
+//|                                                                  |
+//+------------------------------------------------------------------+
 string GetPhaseDescription()
   {
    string s = AMDPhaseToString(g_amdPhase.currentPhase);
@@ -312,3 +412,4 @@ string GetPhaseDescription()
   }
 
 #endif // ICT_AMD_MQH
+//+------------------------------------------------------------------+
