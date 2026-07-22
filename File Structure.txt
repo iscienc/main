@@ -1,0 +1,45 @@
+The File Structure of the MQL5 Expert V18:
+└── ICT_Unified_V18/
+    ├── ICT_Unified_EA_V18.mq5
+    └── Include/
+        ├── UI/
+        │   ├── ICT_Dashboard.mqh
+        │   └── ICT_Drawing.mqh
+        ├── Trading/
+        │   ├── ICT_SignalEngine.mqh
+        │   └── ICT_TradeManager.mqh
+        ├── Structure/
+        │   ├── ICT_DealingRange.mqh
+        │   ├── ICT_MultiTF.mqh
+        │   └── ICT_SwingDetection.mqh
+        ├── StateMachine/
+        │   ├── ICT_MTFLayers.mqh
+        │   ├── ICT_NarrativeGate.mqh
+        │   ├── ICT_SMDetectors.mqh
+        │   ├── ICT_SMEngine.mqh
+        │   ├── ICT_SMPresets.mqh
+        │   └── ICT_SMTypes.mqh
+        ├── NarrativeZones/
+        │   ├── ICT_FairValueGaps.mqh
+        │   ├── ICT_NarrativeStacking.mqh
+        │   ├── ICT_NarrativeZones_Master.mqh
+        │   ├── ICT_OrderBlocks.mqh
+        │   └── ICT_OTE.mqh
+        ├── ML/
+        │   ├── ICT_MLDashboard.mqh
+        │   ├── ICT_MLEngine.mqh
+        │   └── ICT_ShadowTrades.mqh
+        ├── MarketPhase/
+        │   ├── ICT_AMD.mqh
+        │   ├── ICT_JudasSwing.mqh
+        │   ├── ICT_Killzones.mqh
+        │   └── ICT_SMT.mqh
+        ├── External/
+        │   ├── ICT_ExternalProvider.mqh
+        │   └── ICT_SignalOrchestrator.mqh
+        └── Core/
+            ├── ICT_Config.mqh
+            ├── ICT_Globals.mqh
+            ├── ICT_Types.mqh
+            └── ICT_Utilities.mqh
+
